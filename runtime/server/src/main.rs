@@ -7,6 +7,7 @@
 //! * AgentRegistry: Free-LLM-Provider wenn Keys gesetzt, sonst Anthropic
 //! * Orchestrator + DeploymentManager
 //! * Axum-Server via `runtime/api`
+//! * Task-Dispatch-Loop als Hintergrundtask (`dispatcher`)
 //!
 //! ## Agenten-Auswahl
 //!
@@ -20,6 +21,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use tracing::info;
+
+mod dispatcher;
 
 use agents::roles::{
     ArchitectureAgent, CodingAgent, DeploymentAgent,
@@ -51,6 +54,11 @@ async fn main() -> Result<()> {
     );
 
     let state = build_app_state(settings, use_free)?;
+
+    // Dispatch-Loop im Hintergrund starten
+    let _dispatch = dispatcher::spawn(state.clone());
+    info!("dispatcher: Task-Dispatch-Loop gestartet");
+
     api::serve(state).await?;
     info!("DevStudio shutdown complete");
     Ok(())
