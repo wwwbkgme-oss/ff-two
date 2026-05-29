@@ -13,6 +13,7 @@ use tower_http::{
 };
 
 use super::handlers::{deployments, projects, sandbox, security, tasks, world};
+use super::metrics::metrics_handler;
 use super::middleware::auth::{issue_token, require_auth};
 use super::middleware::rate_limit::{rate_limit_middleware, RateLimiter};
 use super::state::AppState;
@@ -22,7 +23,8 @@ pub fn build(state: AppState) -> Router {
     let public = Router::new()
         .route("/auth/token", post(issue_token))
         .route("/health",     get(health))
-        .route("/ready",      get(ready));
+        .route("/ready",      get(ready))
+        .route("/metrics",    get(metrics_handler));
 
     // ── Geschützte Routen (JWT-Pflicht) ───────────────────────────────────────
     let protected = Router::new()

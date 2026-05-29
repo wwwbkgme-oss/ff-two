@@ -7,9 +7,12 @@
 
 pub mod errors;
 pub mod handlers;
+pub mod metrics;
 pub mod middleware;
 pub mod router;
 pub mod state;
+
+pub use metrics::init_prometheus;
 
 pub use errors::{ApiError, ApiResult};
 pub use middleware::auth::{Claims, RequireAuth};

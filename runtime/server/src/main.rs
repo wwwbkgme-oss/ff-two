@@ -55,6 +55,9 @@ async fn main() -> Result<()> {
         "ForgeFabrik DevStudio starting"
     );
 
+    // Prometheus-Recorder einmalig initialisieren
+    api::init_prometheus();
+
     let state = build_app_state_async(settings, use_free).await?;
 
     // Dispatch-Loop im Hintergrund starten
