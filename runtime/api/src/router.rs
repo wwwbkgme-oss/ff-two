@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use axum::{
+    middleware as axum_middleware,
     Router,
     routing::{delete, get, post, put},
 };
@@ -11,6 +14,7 @@ use tower_http::{
 
 use super::handlers::{deployments, projects, sandbox, security, tasks, world};
 use super::middleware::auth::issue_token;
+use super::middleware::rate_limit::{rate_limit_middleware, RateLimiter};
 use super::state::AppState;
 
 pub fn build(state: AppState) -> Router {
@@ -60,6 +64,10 @@ pub fn build(state: AppState) -> Router {
         .layer(CorsLayer::permissive())
         .layer(CompressionLayer::new())
         .layer(TimeoutLayer::new(std::time::Duration::from_secs(60)))
+        .layer(axum_middleware::from_fn_with_state(
+            RateLimiter::from_env(),
+            rate_limit_middleware,
+        ))
         .with_state(state)
 }
 
