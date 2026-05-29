@@ -21,17 +21,18 @@ members = [
     "domain/deployment",      # Deployment-Pipeline, Konsenslogik
     # ── runtime ─────────────────────────────────────────────────────────────
     "runtime/config",         # Settings-Loader (env-basiert)
-    "runtime/store",          # Store-Trait + MemoryStore
+    "runtime/store",          # Store-Trait + MemoryStore + PostgresStore
     "runtime/queue",          # TaskQueue-Trait + MemoryQueue
     "runtime/sandbox",        # SandboxManager-Trait + Local/Docker
     "runtime/api",            # HTTP/Axum: Router, Handler, AppState
+    "runtime/drivers",        # Infrastruktur-Adapter: LLM I/O, Provider-Routing
     "runtime/server",         # Binary-Einstiegspunkt
-    # ── plugins ─────────────────────────────────────────────────────────────
-    "plugins/plugin-world",    # forgefabrik.world   — Voxel-Welt (cdylib)
+    # ── plugins (nur Domain-Behavior-Erweiterungen, kein I/O) ───────────────
+    "plugins/plugin-world",   # forgefabrik.world   — Voxel-Welt (cdylib)
     "plugins/plugin-agents",  # forgefabrik.agents  — AI-Agenten (cdylib)
     "plugins/plugin-gm",      # forgefabrik.gm      — Game Master (cdylib)
     "plugins/plugin-economy", # forgefabrik.economy — Ökonomie   (cdylib)
-    "plugins/plugin-llm-free",# forgefabrik.llm-free— Free LLM Router (cdylib+rlib)
+    # DEPRECATED: plugins/plugin-llm-free → ersetzt durch runtime/drivers/llm
 ]
 resolver = "2"
 
@@ -96,5 +97,5 @@ store      = { path = "runtime/store" }
 queue      = { path = "runtime/queue" }
 sandbox    = { path = "runtime/sandbox" }
 api        = { path = "runtime/api" }
-llm-free   = { path = "plugins/plugin-llm-free" }
+drivers    = { path = "runtime/drivers" }
 # 'config' und 'server' werden direkt per Pfad referenziert (Namenskonflikt vermeiden)
