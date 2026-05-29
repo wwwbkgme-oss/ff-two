@@ -24,32 +24,52 @@ pub struct AppState {
 }
 ```
 
+## Handler-Module
+
+```
+src/handlers/
+├── projects.rs   — create, list, get_by_id, update, archive
+├── tasks.rs      — create, list, get_by_id, update, assign, vote
+├── world.rs      — get_state, stream_events (SSE), get_chunk, list_structures, snapshots
+├── sandbox.rs    — create, get_by_id, destroy, execute, diff, snapshot
+├── security.rs   — scan, list_reviews
+└── deployments.rs— create, list, get_by_id, rollback
+```
+
 ## Starten
 
 ```rust
 use api::{serve, AppState};
 
-// AppState aufbauen ...
 api::serve(state).await?;
 ```
 
 ## Integration-Tests
 
+**14 Tests** in `tests/integration.rs` via `axum-test` — kein Netzwerk, rein in-process.
+
 ```bash
 cargo test -p api
 ```
 
-Tests nutzen `axum-test` mit einem In-Process-Server (kein Netzwerk).  
-Test-Helper: `build_test_app(state)` baut den Router ohne zu binden.
+Abgedeckte Endpoints:
 
-```rust
-use api::build_test_app;
-use axum_test::TestServer;
-
-let server = TestServer::new(build_test_app(test_state()))?;
-let r = server.get("/health").await;
-r.assert_status_ok();
-```
+| Test | Endpoint |
+|---|---|
+| `health_returns_ok` | `GET /health` |
+| `ready_returns_ok` | `GET /ready` |
+| `create_project_returns_201` | `POST /projects` |
+| `create_project_empty_name_returns_400` | `POST /projects` (Validierung) |
+| `list_projects_initially_empty` | `GET /projects` |
+| `get_project_not_found` | `GET /projects/{id}` (404) |
+| `create_and_retrieve_project` | `POST` + `GET /projects/{id}` |
+| `list_projects_after_create` | `GET /projects` (count) |
+| `create_task_returns_201` | `POST /projects/{id}/tasks` |
+| `create_task_empty_title_returns_400` | Validierung |
+| `list_tasks_initially_empty` | `GET /projects/{id}/tasks` |
+| `world_state_returns_empty_initially` | `GET /projects/{id}/world` |
+| `create_sandbox_returns_201` | `POST /sandbox/dev` |
+| `create_sandbox_missing_project_id_returns_400` | Validierung |
 
 ## Fehlerformat
 
@@ -64,9 +84,22 @@ Alle Fehler folgen diesem Schema:
 }
 ```
 
-## Middleware
+Vollständige Code-Liste: `foundation/errors/README.md`.
 
-- `TraceLayer` — strukturiertes Request-Tracing
-- `CorsLayer::permissive()` — CORS (für Produktion einschränken)
-- `CompressionLayer` — gzip-Komprimierung
-- `TimeoutLayer(60s)` — Request-Timeout
+## Middleware (Reihenfolge)
+
+1. `TraceLayer` — strukturiertes Request-Tracing (tracing-subscriber)
+2. `CorsLayer::permissive()` — CORS-Header (für Produktion einschränken)
+3. `CompressionLayer` — gzip-Komprimierung
+4. `TimeoutLayer(60s)` — Request-Timeout
+
+## SSE-Stream
+
+`GET /projects/{id}/world/stream` liefert `text/event-stream`:
+
+```
+data: {"type":"block-placed","block":{...}}
+data: {"type":"file-visualized","path":"src/main.rs","block_count":1}
+```
+
+Clients können alle `WorldEvent`-Varianten empfangen. Verbindung bleibt offen bis Client trennt.

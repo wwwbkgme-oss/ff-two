@@ -2,9 +2,10 @@
 
 ## Voraussetzungen
 
-- Rust stable (aktuelle Version via `rustup`)
-- Docker (für `make docker-*` Targets)
+- Rust stable (aktuelle Version via `rustup update`)
+- Docker + Docker Compose (für `make docker-*` Targets)
 - Node.js ≥ 18 + npm (für `infra/` Pulumi IaC)
+- Optional: Ollama (für lokale LLM-Tests ohne API-Key)
 
 ## Setup
 
@@ -12,78 +13,94 @@
 git clone https://github.com/wwwbkgme-oss/ff-two
 cd ff-two
 cp .env.example .env
-# Optional: Free-LLM-Key setzen (kein CC nötig):
-# export GROQ_API_KEY=gsk_...
-cargo build
+
+# Optional: kostenlosen LLM-Key für echte Agenten-Tests setzen
+# export GROQ_API_KEY=gsk_...   (kostenloser Account: console.groq.com)
+
+cargo build        # erstes Build (lädt Abhängigkeiten)
+make check         # Typen-Check
+make test          # alle Tests
 ```
 
 ## BKG-Architekturprinzip
 
-Jede Änderung muss die Dependency-Richtung respektieren:
+Dependency-Richtung — **niemals umgekehrt**:
 
 ```
 foundation  ←  domain  ←  runtime  ←  plugins
 ```
 
-- `foundation`-Crates kennen keine anderen internen Crates
-- `domain`-Crates kennen nur `foundation`
-- `runtime`-Crates kennen `foundation` + `domain`
-- `plugins`-Crates dürfen alle internen Crates kennen
+| Layer | Darf kennen |
+|---|---|
+| `foundation` | nichts (nur `std` + externe Crates) |
+| `domain` | `foundation` |
+| `runtime` | `foundation` + `domain` |
+| `plugins` | alle internen Crates |
+
+Vor jeder Änderung prüfen: Verletzt mein Import diese Richtung?
 
 ## Entwicklungsworkflow
 
 ```bash
-# Typecheck (schnell)
-make check
-
-# Tests
-make test
-
-# Formatierung prüfen
-make fmt-check
-
-# Linting
-make lint
-
-# Alles auf einmal (pre-commit)
-make check && make fmt && make lint && make test
+make check          # cargo check --workspace (schnell)
+make test           # cargo test --workspace
+make test-api       # nur runtime/api Integration-Tests
+make lint           # cargo clippy --workspace -- -D warnings
+make fmt            # cargo fmt --all
+make fmt-check      # Formatierung prüfen (CI)
+make plugins        # alle Plugin-cdylibs bauen
+make run            # Entwicklungs-Server (lädt .env)
+make watch          # cargo-watch: Neustart bei Änderungen
 ```
 
-## Neue Features
+Pre-commit-Checkliste:
+```bash
+make fmt && make check && make lint && make test
+```
+
+## Neue Crates
 
 ### Neues Domain-Konzept
-1. Crate in `domain/<name>/` erstellen
-2. In `Cargo.toml` Workspace-Member eintragen
-3. Interne Crate-Alias in `[workspace.dependencies]` anlegen
-4. README.md im Crate-Verzeichnis anlegen
-5. CHANGELOG.md aktualisieren
+
+```bash
+# 1. Crate anlegen
+mkdir -p domain/myfeature/src
+# Cargo.toml + src/lib.rs erstellen
+
+# 2. Workspace eintragen (Cargo.toml, [workspace.members])
+# 3. Internen Alias hinzufügen ([workspace.dependencies])
+# 4. README.md anlegen
+# 5. CHANGELOG.md unter [Unreleased] ergänzen
+```
 
 ### Neues Plugin
-Plugins folgen dem BKG-Namensschema:
 
-| Ebene | Konvention |
-|---|---|
-| Ordner | `plugins/plugin-<name>/` |
-| Crate-Name | `<name>` (ohne `plugin-`-Präfix, falls kein Konflikt) |
-| Plugin-ID | `forgefabrik.<name>` |
-| Crate-Type | `["cdylib"]` oder `["cdylib", "rlib"]` |
+BKG-Namensschema:
 
-Jedes Plugin benötigt:
-- `Cargo.toml` mit `[lib] crate-type`
-- `plugin.toml` mit `[plugin] id = "forgefabrik.<name>"`
-- `src/lib.rs` mit `plugin_info()` + `plugin_id()` C-ABI-Exports
+| Ebene | Konvention | Beispiel |
+|---|---|---|
+| Ordner | `plugins/plugin-<name>/` | `plugins/plugin-auth/` |
+| Crate-Name | `<name>` (ohne `plugin-`-Präfix) | `auth` |
+| Plugin-ID | `forgefabrik.<name>` | `forgefabrik.auth` |
+| Crate-Type | `["cdylib"]` oder `["cdylib", "rlib"]` | |
+
+Pflichtdateien:
+- `Cargo.toml` — `[lib] crate-type = ["cdylib"]`
+- `plugin.toml` — `[plugin] id = "forgefabrik.<name>"`
+- `src/lib.rs` — `plugin_info()` + `plugin_id()` C-ABI-Exports
 - `README.md`
 
 ### Neuer Free-LLM-Provider
-In `plugins/plugin-llm-free/src/providers/` eine neue Datei anlegen:
+
+Nur Provider mit **dauerhaft kostenlosem Tier ohne Kreditkarte**:
 
 ```rust
-// providers/myprovider.rs
+// plugins/plugin-llm-free/src/providers/myprovider.rs
 use crate::types::{FreeModel, ProviderConfig};
 
 pub const BASE_URL: &str = "https://api.myprovider.com/v1";
 pub const FREE_MODELS: &[FreeModel] = &[/* ... */];
-pub const DEFAULT_MODEL: &str = "my-model";
+pub const DEFAULT_MODEL: &str = "best-free-model";
 
 pub fn config() -> Option<ProviderConfig> {
     let key = std::env::var("MYPROVIDER_API_KEY").ok().filter(|s| !s.is_empty())?;
@@ -91,33 +108,67 @@ pub fn config() -> Option<ProviderConfig> {
 }
 ```
 
-Dann in `providers/mod.rs` eintragen und `available_providers()` ergänzen.
-
-**Wichtig:** Nur Provider mit dauerhaft kostenlosem Tier ohne Kreditkarte — kein Trial-Guthaben mit Ablaufdatum.
+Dann in `providers/mod.rs` → `available_providers()` ergänzen.
 
 ## Commit-Konventionen
 
-Format: `<type>(<scope>): <description>`
+Format: `<type>(<scope>): <kurze Beschreibung>`
 
 | Type | Verwendung |
 |---|---|
-| `feat` | Neue Funktion |
+| `feat` | Neue Funktion oder Feature |
 | `fix` | Bugfix |
 | `docs` | Nur Dokumentation |
 | `refactor` | Refactoring ohne Verhaltensänderung |
-| `test` | Tests |
-| `chore` | Build, Dependencies, CI |
+| `test` | Neue oder geänderte Tests |
+| `chore` | Build, Dependencies, CI, Tooling |
+| `perf` | Performance-Verbesserung |
+
+Scope-Beispiele: `plugin-llm-free`, `runtime/server`, `domain/agents`, `infra`
 
 Beispiele:
 ```
 feat(plugin-llm-free): Mistral free tier provider hinzufügen
-fix(router): Ollama-Timeout von 60s auf 30s reduzieren
-docs(README): Free-LLM-Quickstart ergänzen
+fix(router): Ollama-Erreichbarkeits-Timeout auf 3s reduzieren
+docs(events): korrekte Event-Varianten dokumentieren
+refactor(store): MemoryStore-Initialisierung vereinfachen
+test(api): fehlende Deployment-Rollback-Tests ergänzen
+chore(deps): axum auf 0.8.3 aktualisieren
 ```
 
-## Pull Requests
+## Pull Request-Workflow
 
-1. Feature-Branch von `main` erstellen: `git checkout -b feat/mein-feature`
-2. `make check && make test` muss grün sein
+1. Feature-Branch erstellen: `git checkout -b feat/<kurze-beschreibung>`
+2. Entwickeln + lokale Validierung:
+   ```bash
+   make fmt && make check && make lint && make test
+   ```
 3. `CHANGELOG.md` unter `[Unreleased]` aktualisieren
-4. PR öffnen — Beschreibung erklärt _warum_, nicht _was_
+4. PR öffnen — Titel entspricht Commit-Konvention, Beschreibung erklärt **warum**
+5. CI muss grün sein (check + lint + test)
+
+## Clippy-Lints
+
+Wir verwenden `-D warnings` — alle Warnungen sind Fehler. Häufige Muster:
+
+```rust
+// Statt:
+let _ = foo().await;
+// Besser:
+foo().await?;       // oder explizit ignorieren mit Kommentar
+
+// Statt:
+Arc::clone(&arc)
+// Besser:
+Arc::clone(&arc)    // (ist bereits idiomatisch — beibehalten)
+
+// Statt:
+.unwrap()           // in Produktions-Code verboten
+// Besser:
+.expect("invariant: ...")  // oder ?-Operator
+```
+
+## Lizenz
+
+MIT. Beitragende übertragen ihre Änderungen unter der MIT-Lizenz.  
+Externe Abhängigkeiten müssen MIT- oder Apache-2.0-kompatibel sein.

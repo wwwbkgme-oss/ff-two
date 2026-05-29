@@ -55,9 +55,10 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 - TypeScript compiles clean (`npx tsc --noEmit`)
 
 #### Dokumentation
-- README.md für alle 19 Crates / Plugins
+- README.md für alle 19 Crates / Plugins (vollständige Trait-Signaturen, echte Event-Varianten)
 - `CHANGELOG.md` (diese Datei)
-- `CONTRIBUTING.md`
+- `CONTRIBUTING.md` — Setup, BKG-Regeln, Clippy-Lints, PR-Workflow
+- `NEXT.md` — priorisierter Entwicklungs-Roadmap (P0–P3, Sprint-Planung)
 
 ### Changed
 - `runtime/api/Cargo.toml` — dev-dependencies erweitert für Integration-Tests
