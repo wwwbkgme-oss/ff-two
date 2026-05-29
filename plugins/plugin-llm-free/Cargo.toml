@@ -1,0 +1,30 @@
+[package]
+# BKG: Ordnername plugin-llm-free, Crate-Name llm-free (kein Konflikt)
+# Refactored + rebranded from github.com/apmantza/pi-free (MIT)
+name        = "llm-free"
+version     = "0.1.0"
+edition     = "2021"
+description = "forgefabrik.llm-free — Free LLM Provider Router (cdylib + rlib)"
+
+# cdylib  = dynamisch ladbar durch den Plugin-Host (C-ABI)
+# rlib    = statisch linkbar durch runtime/server (Rust-API)
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Async runtime
+tokio        = { workspace = true }
+# HTTP client (rustls, kein System-OpenSSL)
+reqwest      = { workspace = true }
+# Serialisierung
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+# Fehler + Tracing
+thiserror    = { workspace = true }
+tracing      = { workspace = true }
+anyhow       = { workspace = true }
+# Interne Crates (Domain-Layer)
+types        = { workspace = true }
+errors       = { workspace = true }
+agents       = { workspace = true }
+async-trait  = { workspace = true }

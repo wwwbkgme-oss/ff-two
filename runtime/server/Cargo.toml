@@ -22,4 +22,5 @@ store      = { workspace = true }
 queue      = { workspace = true }
 sandbox    = { workspace = true }
 api        = { workspace = true }
+llm-free   = { workspace = true }
 config     = { path = "../../runtime/config" }

@@ -27,10 +27,11 @@ members = [
     "runtime/api",            # HTTP/Axum: Router, Handler, AppState
     "runtime/server",         # Binary-Einstiegspunkt
     # ── plugins ─────────────────────────────────────────────────────────────
-    "plugins/plugin-world",   # forgefabrik.world  — Voxel-Welt (cdylib)
-    "plugins/plugin-agents",  # forgefabrik.agents — AI-Agenten (cdylib)
-    "plugins/plugin-gm",      # forgefabrik.gm     — Game Master (cdylib)
-    "plugins/plugin-economy", # forgefabrik.economy— Ökonomie   (cdylib)
+    "plugins/plugin-world",    # forgefabrik.world   — Voxel-Welt (cdylib)
+    "plugins/plugin-agents",  # forgefabrik.agents  — AI-Agenten (cdylib)
+    "plugins/plugin-gm",      # forgefabrik.gm      — Game Master (cdylib)
+    "plugins/plugin-economy", # forgefabrik.economy — Ökonomie   (cdylib)
+    "plugins/plugin-llm-free",# forgefabrik.llm-free— Free LLM Router (cdylib+rlib)
 ]
 resolver = "2"
 
@@ -95,4 +96,5 @@ store      = { path = "runtime/store" }
 queue      = { path = "runtime/queue" }
 sandbox    = { path = "runtime/sandbox" }
 api        = { path = "runtime/api" }
+llm-free   = { path = "plugins/plugin-llm-free" }
 # 'config' und 'server' werden direkt per Pfad referenziert (Namenskonflikt vermeiden)

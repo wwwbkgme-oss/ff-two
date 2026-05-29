@@ -1,0 +1,33 @@
+# ForgeFabrik Plugin Manifest
+# Ported + rebranded from github.com/apmantza/pi-free (MIT)
+
+[plugin]
+id      = "forgefabrik.llm-free"
+version = "0.1.0"
+kind    = "runtime-plugin"
+author  = "ForgeFabrik"
+
+[plugin.capabilities]
+free_llm_routing   = true
+provider_failover  = true
+openrouter_free    = true   # :free models, free account
+groq_free          = true   # generous free tier, free account
+cerebras_free      = true   # free tier, free account
+sambanova_free     = true   # forever free, no credit card
+llm7_free          = true   # free gateway token, 100 req/hr
+ollama_local       = true   # local, completely free, no key needed
+
+[plugin.env]
+# Setze API-Keys via ENV oder ~/.devstudio/free.json
+required = []  # keiner zwingend erforderlich — Ollama funktioniert ohne Keys
+optional = [
+    "OPENROUTER_API_KEY",   # https://openrouter.ai/keys (kostenlos)
+    "GROQ_API_KEY",         # https://console.groq.com  (kostenlos)
+    "CEREBRAS_API_KEY",     # https://cloud.cerebras.ai (kostenlos)
+    "SAMBANOVA_API_KEY",    # https://cloud.sambanova.ai (kostenlos, kein CC)
+    "LLM7_API_KEY",         # https://token.llm7.io     (kostenlos)
+    "OLLAMA_BASE_URL",      # default: http://localhost:11434/v1
+]
+
+[plugin.hooks]
+replace_coding_agent = true  # Ersetzt CodingAgent mit FreeLlmCodingAgent
