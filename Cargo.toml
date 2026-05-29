@@ -1,0 +1,95 @@
+[workspace]
+members = [
+    ".",
+    "crates/types",
+    "crates/errors",
+    "crates/config",
+    "crates/store",
+    "crates/queue",
+    "crates/world",
+    "crates/sandbox",
+    "crates/security",
+    "crates/deployment",
+    "crates/agents",
+    "crates/api",
+]
+resolver = "2"
+
+# ── Shared dependency versions (Single Source of Truth) ───────────────────
+[workspace.dependencies]
+# Runtime
+tokio        = { version = "1",    features = ["full"] }
+# HTTP
+axum         = { version = "0.8",  features = ["ws", "macros"] }
+tower        = { version = "0.5",  features = ["util"] }
+tower-http   = { version = "0.6",  features = ["cors", "trace", "request-id", "timeout", "compression-gzip"] }
+axum-extra   = { version = "0.9",  features = ["typed-header"] }
+# Serialization
+serde        = { version = "1",    features = ["derive"] }
+serde_json   = "1"
+# Database
+sqlx         = { version = "0.8",  features = ["runtime-tokio-rustls", "migrate", "uuid", "chrono", "json", "postgres", "sqlite"] }
+# Messaging
+redis        = { version = "0.27", features = ["tokio-comp", "aio", "streams"] }
+# Docker (no system OpenSSL)
+bollard      = { version = "0.17", default-features = false, features = ["rustls"] }
+# HTTP client (no system OpenSSL)
+reqwest      = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+# Observability
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+# Utilities
+uuid         = { version = "1",    features = ["v4", "serde"] }
+chrono       = { version = "0.4",  features = ["serde"] }
+thiserror    = "2"
+anyhow       = "1"
+async-trait  = "0.1"
+tokio-util   = { version = "0.7",  features = ["full"] }
+futures      = "0.3"
+tokio-stream = { version = "0.1",  features = ["sync"] }
+bytes        = "1"
+once_cell    = "1"
+dotenvy      = "0.15"
+config       = "0.14"
+rand         = "0.8"
+sha2         = "0.10"
+hex          = "0.4"
+argon2       = "0.5"
+jsonwebtoken = "9"
+dashmap      = "5"
+parking_lot  = "0.12"
+validator    = { version = "0.18", features = ["derive"] }
+# Dev
+axum-test    = "20"
+tokio-test   = "0.4"
+mockall      = "0.13"
+tempfile     = "3"
+wiremock     = "0.6"
+
+# ── Root binary package ───────────────────────────────────────────────────
+[package]
+name        = "devstudio"
+version     = "0.1.0"
+edition     = "2021"
+description = "ForgeFabrik DevStudio — Autonomous multi-agent development environment"
+repository  = "https://github.com/wwwbkgme-oss/ff-two"
+license     = "MIT"
+
+[[bin]]
+name = "devstudio"
+path = "src/main.rs"
+
+[dependencies]
+tokio.workspace         = true
+dotenvy.workspace       = true
+anyhow.workspace        = true
+tracing.workspace       = true
+devstudio-config        = { path = "crates/config" }
+devstudio-store         = { path = "crates/store" }
+devstudio-queue         = { path = "crates/queue" }
+devstudio-world         = { path = "crates/world" }
+devstudio-sandbox       = { path = "crates/sandbox" }
+devstudio-security      = { path = "crates/security" }
+devstudio-deployment    = { path = "crates/deployment" }
+devstudio-agents        = { path = "crates/agents" }
+devstudio-api           = { path = "crates/api" }
