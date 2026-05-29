@@ -43,6 +43,8 @@ impl ScanResult {
 /// API-Request für einen Ad-hoc-Scan.
 #[derive(Debug, Deserialize)]
 pub struct ScanRequest {
-    pub changes: Vec<CodeChange>,
-    pub context: Option<String>,
+    pub changes:    Vec<CodeChange>,
+    pub context:    Option<String>,
+    /// Optionale Projekt-ID — wenn gesetzt, wird das Ergebnis als Review gespeichert.
+    pub project_id: Option<Uuid>,
 }

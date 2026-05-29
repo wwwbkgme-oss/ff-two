@@ -185,6 +185,7 @@ fn build_app_state_with_deps(
         queue,
         world:        Arc::new(WorldState::new()),
         sandbox,
+        scan_reviews: Arc::new(dashmap::DashMap::new()),
         scanner:      Arc::new(Scanner::new(
             s.security.block_on_critical,
             s.security.block_on_high,
