@@ -110,3 +110,23 @@ pub extern "C" fn coords_for_path(path_ptr: *const c_char, out_x: *mut i32, out_
         *out_z = ((hash >> 8) & 0xFF) as i32;
     }
 }
+
+// ── SYNC_CONTRACT v0.1 §6 — Kanonische Plugin-Lifecycle-Hooks ────────────────
+
+/// Interner Plugin-Zustand für Lifecycle-Hooks.
+struct WorldPluginLifecycle;
+
+impl WorldPluginLifecycle {
+    fn new() -> Self { Self }
+    fn init(&mut self, _ctx: &types::forge_plugin::FfPluginCtx) -> Result<(), String> {
+        tracing::debug!("forgefabrik.world: ff_plugin_init");
+        Ok(())
+    }
+    fn tick(&mut self, _tick: u64) -> Result<(), String> { Ok(()) }
+    fn shutdown(&mut self) -> Result<(), String> {
+        tracing::debug!("forgefabrik.world: ff_plugin_shutdown");
+        Ok(())
+    }
+}
+
+types::export_forgefabrik_plugin!(WorldPluginLifecycle, WorldPluginLifecycle::new());

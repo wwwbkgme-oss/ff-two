@@ -1,18 +1,14 @@
-# ForgeFabrik Plugin Manifest
-# BKG: Plugin-ID ist namespaced (forgefabrik.<domain>)
+# ForgeFabrik Plugin Manifest — SYNC_CONTRACT v0.1 §6
 
 [plugin]
-id      = "forgefabrik.world"
-version = "0.1.0"
-kind    = "runtime-plugin"
-author  = "ForgeFabrik"
+id          = "forgefabrik.world"
+version     = "0.1.0"
+name        = "ForgeFabrik World Plugin"
+description = "Voxel-Welt-Behavior: Koordinaten, Block-Typen, C-ABI"
 
-[plugin.capabilities]
-voxel_world        = true
-chunk_streaming    = true
-world_snapshots    = true
-sse_events         = true
+[capabilities]
+provides = ["world"]
+requires = []
 
-[plugin.hooks]
-on_file_change = "visualise_file"
-on_tick        = "world_tick"
+[entry]
+lib = "libworld_runtime.so"
