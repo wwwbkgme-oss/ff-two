@@ -47,8 +47,9 @@ async fn create_project(
 
 ## P1 — Wichtig
 
-### RedisQueue
-`MemoryQueue` ist single-process — kein Multi-Instance-Betrieb möglich, Daten gehen beim Restart verloren.
+### ~~RedisQueue~~ ✅ `runtime/queue/src/redis.rs`
+Reliable Queue Pattern: LPUSH/RPOP + In-Flight-Hash + Dead-Letter.
+Aktivierung: `DEVSTUDIO_REDIS_URL=redis://...`
 
 ```
 runtime/queue/src/redis.rs   — TaskQueue-Impl via Redis Streams
@@ -57,8 +58,9 @@ DEVSTUDIO_REDIS_URL=redis://... aktiviert automatisch
 
 ---
 
-### DockerSandboxManager
-`LocalSandboxManager` führt Code im Host-Prozess aus — keine Isolation.
+### ~~DockerSandboxManager~~ ✅ `runtime/sandbox/src/docker.rs`
+Jede Sandbox = kurzlebiger Docker-Container. CPU 0.5, RAM 128 MB, kein Netzwerk.
+Aktivierung: `DEVSTUDIO_SANDBOX_USE_DOCKER=true`
 
 ```
 runtime/sandbox/src/docker.rs  — Container via bollard (rustls)
@@ -170,8 +172,8 @@ Alle Events in Event-Store persistieren → vollständige Replay-Fähigkeit.
 | Lücke | Status | Nächster Schritt |
 |---|---|---|
 | Auth auf Routen | P0 | `RequireAuth` in Handler-Signaturen ergänzen |
-| `MemoryQueue` single-process | P1 | `RedisQueue` implementieren |
-| Sandbox-Isolation | P1 | `DockerSandboxManager` implementieren |
+| ~~`MemoryQueue` single-process~~ | ✅ | `RedisQueue` — `DEVSTUDIO_REDIS_URL=redis://...` |
+| ~~Sandbox-Isolation~~ | ✅ | `DockerSandboxManager` — `DEVSTUDIO_SANDBOX_USE_DOCKER=true` |
 | LLM blockiert | P1 | Streaming-Endpoint |
 | Token-Budget ungenutzt | P1 | Economy-Plugin in FreeLlmAgent verdrahten |
 | Kein OpenAPI-Spec | P1 | `utoipa` Integration |
