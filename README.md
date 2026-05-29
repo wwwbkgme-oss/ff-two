@@ -9,14 +9,16 @@ Ein autonomes Entwicklungs-Framework, in dem KI-Agenten in einer Voxel-Welt koll
 DevStudio ist ein Rust-Workspace nach dem BKG-Architekturprinzip:
 
 ```
-foundation  →  Typen, Events, Fehlerverträge  (kein Infra, keine Logik)
-domain      →  Fachdomänen, one concept = one crate
-runtime     →  Infrastruktur, I/O, Außenwelt
-plugins     →  Runtime-ladbare cdylib-Erweiterungen
-infra       →  Pulumi IaC (AWS ECS Fargate)
+foundation  →  Typen, Events, Fehlerverträge  (kein I/O, keine Logik)
+domain      →  Fachdomänen, Traits, pure Logik  (kein I/O)
+runtime     →  Infrastruktur, I/O, HTTP, DB, Prozesse
+  └─ drivers/ → Infrastruktur-Adapter (LLM, künftig: weitere APIs)
+plugins     →  Domain-Behavior-Erweiterungen  (kein I/O — nur Verhalten)
+infra       →  Cloud-Provisionierung (Pulumi IaC, AWS ECS Fargate)
 ```
 
-**Dependency-Richtung:** `foundation ← domain ← runtime` — nie umgekehrt.
+**Dependency-Richtung:** `foundation ← domain ← runtime` — nie umgekehrt.  
+**Plugin vs. Driver:** Plugins erweitern *Verhalten*, Drivers implementieren *I/O*. Siehe `ARCHITECTURE.md`.
 
 ## Workspace-Struktur
 
@@ -30,16 +32,16 @@ infra       →  Pulumi IaC (AWS ECS Fargate)
 | domain | `security` | Statische Code-Analyse, Regeln, Findings |
 | domain | `deployment` | Deployment-Pipeline-Manager, Konsenslogik |
 | runtime | `config` | Settings-Loader (`DEVSTUDIO_*` ENV) |
-| runtime | `store` | `Store`-Trait + `MemoryStore` |
+| runtime | `store` | `Store`-Trait + `MemoryStore` + `PostgresStore` |
 | runtime | `queue` | `TaskQueue`-Trait + `MemoryQueue` |
 | runtime | `sandbox` | `SandboxManager`-Trait + `LocalSandboxManager` |
-| runtime | `api` | Axum HTTP-Router, Handler, `AppState` |
-| runtime | `server` | Binärer Einstiegspunkt (`devstudio`) |
-| plugins | `world-runtime` | `forgefabrik.world` cdylib |
-| plugins | `agents-runtime` | `forgefabrik.agents` cdylib |
-| plugins | `gm` | `forgefabrik.gm` cdylib |
-| plugins | `economy` | `forgefabrik.economy` cdylib |
-| plugins | `llm-free` | `forgefabrik.llm-free` cdylib+rlib — Free LLM Router |
+| runtime | `api` | Axum HTTP-Router, Handler, Middleware, `AppState` |
+| runtime | `drivers` | Infra-Adapter: `FreeProviderDriver` (LLM I/O) |
+| runtime | `server` | Binärer Einstiegspunkt (`devstudio`), Dispatcher |
+| plugins | `world-runtime` | `forgefabrik.world` — Voxel-Behavior cdylib |
+| plugins | `agents-runtime` | `forgefabrik.agents` — Agenten-Behavior cdylib |
+| plugins | `gm` | `forgefabrik.gm` — Game-Master-Regelwerk cdylib |
+| plugins | `economy` | `forgefabrik.economy` — Token-Budget cdylib |
 
 ## Schnellstart
 
@@ -154,16 +156,19 @@ make run          # Entwicklungs-Server
 
 Runtime-ladbare cdylib-Erweiterungen in `plugins/`:
 
+Plugins erweitern **Domain-Verhalten** — sie machen **keinen I/O** (kein HTTP, keine DB).
+
 | Ordner | Crate | Plugin-ID | Funktion |
 |---|---|---|---|
-| `plugins/plugin-world` | `world-runtime` | `forgefabrik.world` | Voxel-Koordinaten, C-ABI |
+| `plugins/plugin-world` | `world-runtime` | `forgefabrik.world` | Voxel-Koordinaten, Block-Typen |
 | `plugins/plugin-agents` | `agents-runtime` | `forgefabrik.agents` | Aufgabenvergabe, Konsens |
-| `plugins/plugin-gm` | `gm` | `forgefabrik.gm` | Regelwerk, GM-Events |
-| `plugins/plugin-economy` | `economy` | `forgefabrik.economy` | Token-Budget, Rate-Limiting |
-| `plugins/plugin-llm-free` | `llm-free` | `forgefabrik.llm-free` | Free LLM Router (OpenRouter, Groq, Cerebras, SambaNova, LLM7, Ollama) |
+| `plugins/plugin-gm` | `gm` | `forgefabrik.gm` | Regelwerk, Szenario-Events |
+| `plugins/plugin-economy` | `economy` | `forgefabrik.economy` | Token-Budget, Throttling |
 
-Alle Plugins exportieren `plugin_info()` und `plugin_id()` über ein stabiles C-ABI (`#[repr(C)]`).
-`plugin-llm-free` ist zusätzlich als `rlib` statisch linkbar und ersetzt den `CodingAgent` automatisch wenn Free-Provider-Keys gesetzt sind.
+Alle Plugins exportieren `plugin_info()` und `plugin_id()` über stabiles C-ABI (`#[repr(C)]`).
+
+> **`plugins/plugin-llm-free` ist deprecated** — LLM-Provider-Wiring ist Infrastruktur, kein Plugin.  
+> Ersetzt durch `runtime/drivers/llm/` + `domain/agents::FreeLlmAgent`. Siehe `ARCHITECTURE.md`.
 
 ## Infrastructure
 
