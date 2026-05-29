@@ -5,11 +5,13 @@
 //! Der Orchestrator enthält Geschäftslogik (Aufgabenzuweisung, Konsens).
 //! Der async Dispatch-Loop (Queue-Polling, Store-Persistenz) lebt in runtime/server.
 
+pub mod llm_driver;
 pub mod orchestrator;
 pub mod registry;
 pub mod roles;
 pub mod traits;
 
+pub use llm_driver::{LlmDriver, LlmResponse, NullDriver};
 pub use orchestrator::Orchestrator;
 pub use registry::AgentRegistry;
 pub use traits::{AgentOutput, BuildResult, DevRolePlugin, Review, WorldVisualizationPlugin};
