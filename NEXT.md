@@ -8,7 +8,7 @@ Priorisierung: **P0** = blockiert Production, **P1** = wichtig, **P2** = wertvol
 
 ## P0 — Blocking: Production-Readiness
 
-### Task Dispatch Loop
+### ~~Task Dispatch Loop~~ ✅ `runtime/server/src/dispatcher.rs`
 **Was fehlt:** Der `Orchestrator` ist verdrahtet, aber nichts pollt die Queue und ruft Agenten auf.  
 Die Tasks landen in `MemoryQueue.push()` und bleiben dort — keine automatische Verarbeitung.
 
@@ -29,8 +29,15 @@ runtime/server
 
 ---
 
-### PostgresStore
-**Was fehlt:** `MemoryStore` verliert alle Daten beim Neustart.  
+### ~~PostgresStore~~ ✅ `runtime/store/src/postgres.rs`
+
+### Auth-Middleware
+**Was fehlt (noch):** `RequireAuth`-Extractor ist verfügbar, aber noch nicht auf Routen angewendet.
+
+---
+
+### PostgresStore ✅ (implementiert, wartend auf Postgres-Instanz)
+**Implementiert:** `DEVSTUDIO_DATABASE_URL=postgres://...` aktiviert PostgresStore automatisch.  
 **Ziel:** `runtime/store/src/postgres.rs` — `sqlx` PostgreSQL-Backend hinter demselben `Store`-Trait.  
 `DEVSTUDIO_DATABASE_URL=postgres://...` aktiviert ihn automatisch.
 
@@ -133,8 +140,7 @@ zur Laufzeit via `libloading`.
 
 ---
 
-### Rate Limiting
-**Was fehlt:** API hat kein Rate Limiting — DoS-anfällig.  
+### ~~Rate Limiting~~ ✅ `runtime/api/src/middleware/rate_limit.rs`  
 **Ziel:** `tower_governor` oder eigene `tower::Layer` für IP-basiertes Rate Limiting.
 
 ---
@@ -152,15 +158,9 @@ Metriken: Request-Count, Latenz, Queue-Tiefe, Agent-Erfolgsrate, Free-LLM-Provid
 
 ---
 
-### plugin-llm-free: Mistral Free Tier
-**Was fehlt:** Mistral bietet kostenlose API-Zugriffe (free account, kein CC).  
-**Ziel:** `providers/mistral.rs` — `MISTRAL_API_KEY`, Modelle: `mistral-small-latest` etc.
+### ~~plugin-llm-free: Mistral Free Tier~~ ✅ `providers/mistral.rs`
 
----
-
-### plugin-llm-free: Google AI Studio Free Tier
-**Was fehlt:** Google Gemini API bietet ein großzügiges kostenloses Tier via AI Studio.  
-**Ziel:** `providers/gemini.rs` — `GOOGLE_AI_STUDIO_KEY`, OpenAI-kompatibles Endpoint.
+### ~~plugin-llm-free: Google AI Studio Free Tier~~ ✅ `providers/gemini.rs`
 
 ---
 
@@ -191,13 +191,13 @@ Jeder State kann aus dem Event-Log rekonstruiert werden.
 
 | Lücke | Wo | Auswirkung |
 |---|---|---|
-| Kein Task-Dispatch-Loop | `runtime/server` | Tasks landen in Queue, werden nie verarbeitet |
-| `MemoryStore` nicht persistiert | `runtime/store` | Datenverlust bei Neustart |
-| Keine Auth-Middleware | `runtime/api` | Alle Endpoints öffentlich |
+| ~~Kein Task-Dispatch-Loop~~ | ✅ | `dispatcher.rs` — pollt Queue, ruft Agenten auf |
+| ~~`MemoryStore` nicht persistiert~~ | ✅ | `PostgresStore` — aktivieren mit `DATABASE_URL=postgres://...` |
+| Auth-Middleware | `runtime/api` | `RequireAuth`-Extractor verfügbar, Routen noch ungeschützt |
 | `MemoryQueue` single-process | `runtime/queue` | Kein Scale-Out möglich |
 | `LocalSandboxManager` keine Isolation | `runtime/sandbox` | Code läuft im Host-Prozess |
-| Kein CI | root | Keine automatische Qualitätssicherung |
-| Rate-Limit fehlt | `runtime/api` | DoS-anfällig |
+| ~~Kein CI~~ | ✅ | `.github/workflows/ci.yml` — check, lint, test, infra |
+| ~~Rate-Limit fehlt~~ | ✅ | `rate_limit.rs` — Sliding-Window, 300 Req/Min default |
 | LLM-Streaming fehlt | `plugin-llm-free` | Agenten blockieren bis Antwort komplett |
 
 ---
