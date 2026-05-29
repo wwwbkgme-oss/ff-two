@@ -20,6 +20,10 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 - `runtime/api/src/state.rs` — AppState.scan_reviews Cache
 
 ### Production-Readiness (neueste Commits)
+- `runtime/api/src/handlers/security.rs` — `list_reviews` kein Stub mehr:
+  Scan-Ergebnisse werden per `project_id` aus dem Store geladen und zurückgegeben
+- `runtime/api/src/handlers/api.rs` — Auth-Flow vollständig dokumentiert:
+  JWT-Token via `POST /auth/token` → `RequireAuth` Middleware → alle geschützten Routes
 - `runtime/queue/src/redis.rs` — `RedisQueue`: Reliable Queue via Redis Lists, Dead-Letter, Auto-Select
 - `runtime/sandbox/src/docker.rs` — `DockerSandboxManager`: Container-Isolation, CPU/RAM-Limits, Snapshot/Restore
 - `runtime/server/src/main.rs` — Auto-Select: Redis-Queue + Docker-Sandbox anhand ENV-Flags
