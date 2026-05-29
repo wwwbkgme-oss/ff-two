@@ -7,10 +7,12 @@
 
 pub mod errors;
 pub mod handlers;
+pub mod middleware;
 pub mod router;
 pub mod state;
 
 pub use errors::{ApiError, ApiResult};
+pub use middleware::auth::{Claims, RequireAuth};
 pub use state::AppState;
 
 use anyhow::Result;
