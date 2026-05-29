@@ -9,6 +9,11 @@ Priorisierung: **P0** = blockiert Production · **P1** = wichtig · **P2** = wer
 
 | Sprint | Item | Datei / Scope |
 |---|---|---|
+| **Sync** | forge-core SYNC_CONTRACT v0.1 Compliance | `FORGE_CORE_SYNC.md` |
+| **Sync** | WorldTick, TickContext, DeterministicRng | `foundation/types/src/tick.rs` |
+| **Sync** | FreeProvider, AgentKind canonical grouping | `foundation/types/src/canonical.rs` |
+| **Sync** | Plugin-ABI: ff_plugin_init/tick/shutdown | alle 4 plugins + `export_forgefabrik_plugin!` |
+| **Sync** | SYNC_CONTRACT §8 Tests (Replay, Equality, Roundtrip) | `foundation/types` + `foundation/events` |
 | 1 | Task Dispatch Loop | `runtime/server/src/dispatcher.rs` |
 | 1 | GitHub Actions CI/CD | `.github/workflows/ci.yml` |
 | 1 | JWT Auth-Middleware + /auth/token | `runtime/api/src/middleware/auth.rs` |
