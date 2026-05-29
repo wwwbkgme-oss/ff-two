@@ -33,8 +33,8 @@ use api::AppState;
 use config::Settings;
 use deployment::{DeploymentManager, PipelineConfig};
 use drivers::FreeProviderDriver;
-use queue::MemoryQueue;
-use sandbox::LocalSandboxManager;
+use queue::{MemoryQueue, RedisQueue, TaskQueue};
+use sandbox::{DockerSandboxManager, LocalSandboxManager, SandboxManager};
 use security::Scanner;
 use store::{MemoryStore, PostgresStore, Store};
 use world::WorldState;
@@ -46,10 +46,12 @@ async fn main() -> Result<()> {
 
     let use_free = has_free_providers();
     info!(
-        version   = env!("CARGO_PKG_VERSION"),
-        host      = %settings.server.host,
-        port      = settings.server.port,
-        free_llm  = use_free,
+        version      = env!("CARGO_PKG_VERSION"),
+        host         = %settings.server.host,
+        port         = settings.server.port,
+        free_llm     = use_free,
+        redis        = settings.queue.redis_url.is_some(),
+        docker_sb    = settings.sandbox.use_docker,
         "ForgeFabrik DevStudio starting"
     );
 
@@ -93,21 +95,50 @@ fn has_free_providers() -> bool {
 /// * `true`  → alle 6 Rollen nutzen `FreeLlmAgent` (kostenlose Provider)
 /// * `false` → Coding nutzt `CodingAgent` (Anthropic), Rest: einfache Agents
 pub async fn build_app_state_async(s: Settings, use_free_llm: bool) -> Result<AppState> {
+    // ── Store auto-select ────────────────────────────────────────────────────
     let store: Arc<dyn Store> = if s.database.url.starts_with("postgres") {
-        info!("Store: PostgresStore ({})", &s.database.url[..s.database.url.find('@').unwrap_or(30).min(30)]);
+        info!("Store: PostgresStore");
         Arc::new(PostgresStore::connect_and_migrate(&s.database.url).await?)
     } else {
-        info!("Store: MemoryStore (kein Postgres konfiguriert)");
+        info!("Store: MemoryStore");
         Arc::new(MemoryStore::new())
     };
-    build_app_state_with_store(s, use_free_llm, store)
+
+    // ── Queue auto-select ────────────────────────────────────────────────────
+    let queue: Arc<dyn TaskQueue> = if let Some(ref url) = s.queue.redis_url {
+        info!("Queue: RedisQueue");
+        Arc::new(RedisQueue::new(url)?)
+    } else {
+        info!("Queue: MemoryQueue");
+        Arc::new(MemoryQueue::new(s.queue.capacity))
+    };
+
+    // ── Sandbox auto-select ──────────────────────────────────────────────────
+    let sandbox: Arc<dyn SandboxManager> = if s.sandbox.use_docker {
+        info!("Sandbox: DockerSandboxManager");
+        Arc::new(DockerSandboxManager::new(s.sandbox.timeout_secs).await?)
+    } else {
+        info!("Sandbox: LocalSandboxManager");
+        Arc::new(LocalSandboxManager::new(s.sandbox.clone()))
+    };
+
+    build_app_state_with_deps(s, use_free_llm, store, queue, sandbox)
 }
 
 pub fn build_app_state(s: Settings, use_free_llm: bool) -> Result<AppState> {
-    build_app_state_with_store(s, use_free_llm, Arc::new(MemoryStore::new()))
+    let store   = Arc::new(MemoryStore::new()) as Arc<dyn Store>;
+    let queue   = Arc::new(MemoryQueue::new(s.queue.capacity)) as Arc<dyn TaskQueue>;
+    let sandbox = Arc::new(LocalSandboxManager::new(s.sandbox.clone())) as Arc<dyn SandboxManager>;
+    build_app_state_with_deps(s, use_free_llm, store, queue, sandbox)
 }
 
-fn build_app_state_with_store(s: Settings, use_free_llm: bool, store: Arc<dyn Store>) -> Result<AppState> {
+fn build_app_state_with_deps(
+    s:           Settings,
+    use_free_llm: bool,
+    store:        Arc<dyn Store>,
+    queue:        Arc<dyn TaskQueue>,
+    sandbox:      Arc<dyn SandboxManager>,
+) -> Result<AppState> {
     use types::AgentRole;
 
     let mut registry = AgentRegistry::new();
@@ -148,9 +179,9 @@ fn build_app_state_with_store(s: Settings, use_free_llm: bool, store: Arc<dyn St
 
     Ok(AppState {
         store,
-        queue:        Arc::new(MemoryQueue::new(s.queue.capacity)),
+        queue,
         world:        Arc::new(WorldState::new()),
-        sandbox:      Arc::new(LocalSandboxManager::new(s.sandbox.clone())),
+        sandbox,
         scanner:      Arc::new(Scanner::new(
             s.security.block_on_critical,
             s.security.block_on_high,
