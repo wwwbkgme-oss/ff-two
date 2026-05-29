@@ -26,13 +26,13 @@ mod dispatcher;
 
 use agents::roles::{
     ArchitectureAgent, CodingAgent, DeploymentAgent,
-    RequirementsAgent, SecurityAgent, TestingAgent,
+    FreeLlmAgent, RequirementsAgent, SecurityAgent, TestingAgent,
 };
 use agents::{AgentRegistry, Orchestrator};
 use api::AppState;
 use config::Settings;
 use deployment::{DeploymentManager, PipelineConfig};
-use llm_free::agent::FreeLlmAgent;
+use drivers::FreeProviderDriver;
 use queue::MemoryQueue;
 use sandbox::LocalSandboxManager;
 use security::Scanner;
@@ -114,8 +114,9 @@ fn build_app_state_with_store(s: Settings, use_free_llm: bool, store: Arc<dyn St
 
     if use_free_llm {
         // ── Free-LLM-Modus: alle 6 Rollen via forgefabrik.llm-free ────────────
-        info!("AgentRegistry: Free-LLM-Modus (forgefabrik.llm-free)");
-        for (role, agent) in llm_free::agent::all_roles() {
+        info!("AgentRegistry: Free-LLM-Modus (runtime/drivers/llm)");
+        let driver = Arc::new(FreeProviderDriver::new());
+        for (role, agent) in FreeLlmAgent::all_roles(driver) {
             registry.register(role, agent as Arc<dyn agents::DevRolePlugin>);
         }
     } else {
