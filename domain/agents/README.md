@@ -1,23 +1,25 @@
 # `domain/agents`
 
-`DevRolePlugin`-Trait, 6 Agenten-Rollen und der `Orchestrator`.
+`DevRolePlugin`-Trait, `LlmDriver`-Trait, 6+1 Agenten-Rollen und der `Orchestrator`.
 
 ## BKG-Regeln
 
-- Reine Domänenlogik: kein HTTP, kein I/O, keine Store/Queue-Deps
+- Reine Domänenlogik: **kein HTTP, kein I/O**
 - Der `Orchestrator` enthält Geschäftslogik (Aufgabenzuweisung, Konsens)
-- Der async Dispatch-Loop (Queue-Polling, Store-Persistenz) lebt in `runtime/server`
+- LLM-Provider-Details leben in `runtime/drivers/llm/` — nicht hier
+- Der Dispatch-Loop (Queue-Polling) lebt in `runtime/server/dispatcher.rs`
 
 ## Agenten-Rollen
 
-| Rolle | Crate-Typ | Beschreibung |
+| Typ | Rolle | Beschreibung |
 |---|---|---|
-| `Requirements` | `RequirementsAgent` | Anforderungsanalyse, User-Stories |
-| `Architecture` | `ArchitectureAgent` | System-Design, API-Verträge |
-| `Coding` | `CodingAgent` | Code-Generierung via Anthropic Claude |
-| `Testing` | `TestingAgent` | Test-Auswertung, Coverage-Prüfung |
-| `Security` | `SecurityAgent` | Statische Sicherheitsanalyse |
-| `Deployment` | `DeploymentAgent` | Deployment-Vorbereitung |
+| `RequirementsAgent` | Requirements | Anforderungsanalyse, User-Stories |
+| `ArchitectureAgent` | Architecture | System-Design, API-Verträge |
+| `CodingAgent` | Coding | Code-Generierung via Anthropic Claude |
+| `TestingAgent` | Testing | Test-Auswertung, Coverage-Prüfung |
+| `SecurityAgent` | Security | Statische Sicherheitsanalyse |
+| `DeploymentAgent` | Deployment | Deployment-Vorbereitung |
+| `FreeLlmAgent` | alle | Beliebige Rolle via injizierbarem `LlmDriver` |
 
 ## DevRolePlugin-Trait
 
@@ -32,36 +34,53 @@ pub trait DevRolePlugin: Send + Sync + 'static {
 }
 ```
 
+## LlmDriver-Trait
+
+Abstraktes Interface für LLM-Aufrufe — **kein I/O in dieser Datei**.  
+Implementierungen ausschließlich in `runtime/drivers/llm/`.
+
+```rust
+#[async_trait]
+pub trait LlmDriver: Send + Sync + 'static {
+    async fn chat(&self, system: &str, user: &str, max_tokens: u32) -> AppResult<LlmResponse>;
+    fn provider_name(&self) -> &str { "unknown" }
+}
+```
+
+`NullDriver` — deterministischer Mock für Tests ohne echten Provider.
+
+## FreeLlmAgent
+
+`FreeLlmAgent` implementiert `DevRolePlugin` für alle 6 Rollen.  
+Nimmt einen `Arc<dyn LlmDriver>` — kennt **keine** HTTP-Details.
+
+```rust
+// in runtime/server:
+use agents::roles::FreeLlmAgent;
+use drivers::FreeProviderDriver;
+
+let driver = Arc::new(FreeProviderDriver::new());  // I/O in runtime/drivers
+for (role, agent) in FreeLlmAgent::all_roles(driver) {
+    registry.register(role, agent as Arc<dyn DevRolePlugin>);
+}
+```
+
+Aktivierung: mindestens einen ENV-Key setzen (`GROQ_API_KEY`, `OPENROUTER_API_KEY`, etc.)  
+oder `DEVSTUDIO_USE_FREE_LLM=true` für Ollama-only.
+
+## CodingAgent — Anthropic Claude
+
+`CodingAgent` ruft die Anthropic Claude API auf.  
+Ohne `ANTHROPIC_API_KEY` → deterministischer Mock-Fallback.
+
 ## Orchestrator
 
 ```rust
-let registry = Arc::new(AgentRegistry::new());
-// registry.register(role, plugin) ...
-let orchestrator = Orchestrator::new(registry);
+let orchestrator = Orchestrator::new(Arc::new(registry));
 
 // Welches Plugin übernimmt die Task?
 let plugin = orchestrator.select_plugin(&task).await;
 
-// Ist Konsens erreicht?
+// Konsens erreicht?
 let ok = orchestrator.consensus_met(&task);
 ```
-
-## CodingAgent — Anthropic Claude
-
-`CodingAgent` ruft die Anthropic Claude API auf. Ohne `ANTHROPIC_API_KEY` oder bei leerem Key fällt er auf einen deterministischen Mock zurück.
-
-## FreeLlmAgent — Kostenlose Provider (forgefabrik.llm-free)
-
-`FreeLlmAgent` aus `plugins/plugin-llm-free` implementiert denselben `DevRolePlugin`-Trait und kann alle 6 Rollen übernehmen. Nutzt ausschließlich dauerhaft kostenlose Provider (OpenRouter `:free`, Groq, Cerebras, SambaNova, LLM7, Ollama).
-
-Wird automatisch aktiviert wenn `GROQ_API_KEY`, `OPENROUTER_API_KEY` o. ä. gesetzt sind:
-
-```rust
-// runtime/server wählt automatisch:
-use llm_free::agent::all_roles;
-for (role, agent) in all_roles() {
-    registry.register(role, agent);
-}
-```
-
-Jeder `FreeLlmAgent` hat einen rollenspezifischen System-Prompt auf Deutsch/Englisch.
