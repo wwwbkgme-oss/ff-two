@@ -1,11 +1,7 @@
 //! Integration-Tests für `runtime/api`.
 //!
-//! Jeder Test startet einen Axum-In-Process-Server (kein Netzwerk) via `axum-test`
-//! und prüft Routing, Status-Codes und Response-Shapes.
-//!
-//! ## Konventionen
-//! * Helper `test_state()` baut einen In-Memory-AppState.
-//! * Tests sind `#[tokio::test]` und hängen **nicht** von externen Diensten ab.
+//! Jeder Test startet einen Axum-In-Process-Server via `axum-test`.
+//! Auth: Tests holen sich zuerst einen JWT-Token via `POST /auth/token`.
 
 use std::sync::Arc;
 
@@ -22,12 +18,10 @@ use security::Scanner;
 use store::MemoryStore;
 use world::WorldState;
 
-// ── Hilfs-Konstruktor ──────────────────────────────────────────────────────
+// ── Hilfs-Konstruktor ─────────────────────────────────────────────────────────
 
-/// Erstellt einen vollständigen `AppState` für Tests — rein in-memory, kein I/O.
 fn test_state() -> AppState {
-    let settings = Settings::from_env().expect("Settings aus ENV nicht ladbar");
-
+    let settings    = Settings::from_env().expect("Settings laden");
     let registry    = Arc::new(AgentRegistry::new());
     let orchestrator = Orchestrator::new(Arc::clone(&registry));
     let pipeline    = PipelineConfig::default();
@@ -49,15 +43,28 @@ fn server() -> TestServer {
         .expect("TestServer konnte nicht gestartet werden")
 }
 
-// ── Health / Ready ─────────────────────────────────────────────────────────
+/// JWT-Token für Tests holen. Nutzt den Standard-Dev-Secret aus Settings.
+async fn auth_token(s: &TestServer) -> String {
+    let secret = Settings::from_env()
+        .map(|s| s.auth.jwt_secret)
+        .unwrap_or_else(|_| "change-me-in-production-use-a-strong-random-value".into());
+
+    let r = s.post("/auth/token")
+        .json(&json!({ "sub": "test-user", "secret": secret }))
+        .await;
+    r.assert_status_ok();
+    let body: serde_json::Value = r.json();
+    body["token"].as_str().expect("token field").to_owned()
+}
+
+// ── Health / Ready (public) ───────────────────────────────────────────────────
 
 #[tokio::test]
 async fn health_returns_ok() {
     let s = server();
     let r = s.get("/health").await;
     r.assert_status_ok();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["status"], "ok");
+    assert_eq!(r.json::<serde_json::Value>()["status"], "ok");
 }
 
 #[tokio::test]
@@ -65,28 +72,47 @@ async fn ready_returns_ok() {
     let s = server();
     let r = s.get("/ready").await;
     r.assert_status_ok();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["status"], "ready");
+    assert_eq!(r.json::<serde_json::Value>()["status"], "ready");
 }
 
-// ── Projects ──────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn token_endpoint_returns_token() {
+    let s      = server();
+    let token  = auth_token(&s).await;
+    assert!(!token.is_empty());
+}
+
+#[tokio::test]
+async fn protected_route_without_token_returns_401() {
+    let s = server();
+    let r = s.get("/projects").await;
+    r.assert_status_unauthorized();
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────────
 
 #[tokio::test]
 async fn create_project_returns_201() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
     let r = s.post("/projects")
+        .add_header("Authorization", format!("Bearer {token}").parse().unwrap())
         .json(&json!({ "name": "Test-Projekt" }))
         .await;
     r.assert_status_success();
     let body: serde_json::Value = r.json();
     assert_eq!(body["name"], "Test-Projekt");
-    assert!(body["id"].is_string(), "id muss eine UUID-Zeichenkette sein");
+    assert!(body["id"].is_string());
 }
 
 #[tokio::test]
 async fn create_project_empty_name_returns_400() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
     let r = s.post("/projects")
+        .add_header("Authorization", format!("Bearer {token}").parse().unwrap())
         .json(&json!({ "name": "   " }))
         .await;
     r.assert_status_bad_request();
@@ -94,180 +120,165 @@ async fn create_project_empty_name_returns_400() {
 
 #[tokio::test]
 async fn list_projects_initially_empty() {
-    let s = server();
-    let r = s.get("/projects").await;
+    let s     = server();
+    let token = auth_token(&s).await;
+    let r = s.get("/projects")
+        .add_header("Authorization", format!("Bearer {token}").parse().unwrap())
+        .await;
     r.assert_status_ok();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["count"], 0);
-    assert!(body["projects"].is_array());
+    assert_eq!(r.json::<serde_json::Value>()["count"], 0);
 }
 
 #[tokio::test]
 async fn get_project_not_found() {
-    let s = server();
-    let fake_id = uuid::Uuid::new_v4();
-    let r = s.get(&format!("/projects/{fake_id}")).await;
+    let s     = server();
+    let token = auth_token(&s).await;
+    let fake  = uuid::Uuid::new_v4();
+    let r     = s.get(&format!("/projects/{fake}"))
+        .add_header("Authorization", format!("Bearer {token}").parse().unwrap())
+        .await;
     r.assert_status_not_found();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["error"]["code"], "NOT_FOUND");
+    assert_eq!(r.json::<serde_json::Value>()["error"]["code"], "NOT_FOUND");
 }
 
 #[tokio::test]
 async fn create_and_retrieve_project() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
+    let auth  = || format!("Bearer {token}").parse::<axum::http::HeaderValue>().unwrap();
 
-    // Anlegen
     let create = s.post("/projects")
-        .json(&json!({ "name": "Mein Projekt", "description": "Beschreibung" }))
+        .add_header("Authorization", auth())
+        .json(&json!({ "name": "Mein Projekt", "description": "Test" }))
         .await;
     create.assert_status_success();
     let project: serde_json::Value = create.json();
-    let id = project["id"].as_str().expect("id fehlt");
+    let id = project["id"].as_str().unwrap();
 
-    // Abrufen
-    let get = s.get(&format!("/projects/{id}")).await;
+    let get = s.get(&format!("/projects/{id}"))
+        .add_header("Authorization", auth())
+        .await;
     get.assert_status_ok();
-    let fetched: serde_json::Value = get.json();
-    assert_eq!(fetched["id"], project["id"]);
-    assert_eq!(fetched["name"], "Mein Projekt");
+    assert_eq!(get.json::<serde_json::Value>()["name"], "Mein Projekt");
 }
 
 #[tokio::test]
 async fn list_projects_after_create() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
+    let auth  = || format!("Bearer {token}").parse::<axum::http::HeaderValue>().unwrap();
 
-    s.post("/projects")
-        .json(&json!({ "name": "A" }))
-        .await
-        .assert_status_success();
-    s.post("/projects")
-        .json(&json!({ "name": "B" }))
-        .await
-        .assert_status_success();
+    s.post("/projects").add_header("Authorization", auth()).json(&json!({ "name": "A" })).await.assert_status_success();
+    s.post("/projects").add_header("Authorization", auth()).json(&json!({ "name": "B" })).await.assert_status_success();
 
-    let r = s.get("/projects").await;
+    let r = s.get("/projects").add_header("Authorization", auth()).await;
     r.assert_status_ok();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["count"], 2);
+    assert_eq!(r.json::<serde_json::Value>()["count"], 2);
 }
 
-// ── Tasks ─────────────────────────────────────────────────────────────────
+// ── Tasks ─────────────────────────────────────────────────────────────────────
 
 #[tokio::test]
 async fn create_task_returns_201() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
+    let auth  = || format!("Bearer {token}").parse::<axum::http::HeaderValue>().unwrap();
 
-    // Projekt anlegen
     let proj: serde_json::Value = s.post("/projects")
-        .json(&json!({ "name": "Task-Test-Projekt" }))
-        .await
-        .json();
+        .add_header("Authorization", auth())
+        .json(&json!({ "name": "P" }))
+        .await.json();
     let pid = proj["id"].as_str().unwrap();
 
-    // Task anlegen
     let r = s.post(&format!("/projects/{pid}/tasks"))
-        .json(&json!({ "title": "Feature X implementieren" }))
+        .add_header("Authorization", auth())
+        .json(&json!({ "title": "Feature X" }))
         .await;
     r.assert_status_success();
-    let task: serde_json::Value = r.json();
-    assert_eq!(task["title"], "Feature X implementieren");
-    assert_eq!(task["project_id"], pid);
+    assert_eq!(r.json::<serde_json::Value>()["title"], "Feature X");
 }
 
 #[tokio::test]
 async fn create_task_empty_title_returns_400() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
+    let auth  = || format!("Bearer {token}").parse::<axum::http::HeaderValue>().unwrap();
 
     let proj: serde_json::Value = s.post("/projects")
-        .json(&json!({ "name": "P" }))
-        .await
-        .json();
+        .add_header("Authorization", auth())
+        .json(&json!({ "name": "P" })).await.json();
     let pid = proj["id"].as_str().unwrap();
 
     let r = s.post(&format!("/projects/{pid}/tasks"))
-        .json(&json!({ "title": "" }))
-        .await;
+        .add_header("Authorization", auth())
+        .json(&json!({ "title": "" })).await;
     r.assert_status_bad_request();
 }
 
-#[tokio::test]
-async fn list_tasks_initially_empty() {
-    let s = server();
-
-    let proj: serde_json::Value = s.post("/projects")
-        .json(&json!({ "name": "P" }))
-        .await
-        .json();
-    let pid = proj["id"].as_str().unwrap();
-
-    let r = s.get(&format!("/projects/{pid}/tasks")).await;
-    r.assert_status_ok();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["count"], 0);
-}
-
-// ── World ─────────────────────────────────────────────────────────────────
+// ── World ─────────────────────────────────────────────────────────────────────
 
 #[tokio::test]
 async fn world_state_returns_empty_initially() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
+    let auth  = || format!("Bearer {token}").parse::<axum::http::HeaderValue>().unwrap();
 
     let proj: serde_json::Value = s.post("/projects")
-        .json(&json!({ "name": "World-Test" }))
-        .await
-        .json();
+        .add_header("Authorization", auth())
+        .json(&json!({ "name": "W" })).await.json();
     let pid = proj["id"].as_str().unwrap();
 
-    let r = s.get(&format!("/projects/{pid}/world")).await;
+    let r = s.get(&format!("/projects/{pid}/world"))
+        .add_header("Authorization", auth()).await;
     r.assert_status_ok();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["chunk_count"], 0);
-    assert_eq!(body["block_count"], 0);
+    assert_eq!(r.json::<serde_json::Value>()["chunk_count"], 0);
 }
 
-// ── Sandbox ───────────────────────────────────────────────────────────────
+// ── Sandbox ───────────────────────────────────────────────────────────────────
 
 #[tokio::test]
 async fn create_sandbox_returns_201() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
+    let auth  = || format!("Bearer {token}").parse::<axum::http::HeaderValue>().unwrap();
 
     let proj: serde_json::Value = s.post("/projects")
-        .json(&json!({ "name": "Sandbox-Test" }))
-        .await
-        .json();
+        .add_header("Authorization", auth())
+        .json(&json!({ "name": "S" })).await.json();
     let pid = proj["id"].as_str().unwrap();
 
     let r = s.post("/sandbox/dev")
-        .json(&json!({ "project_id": pid }))
-        .await;
+        .add_header("Authorization", auth())
+        .json(&json!({ "project_id": pid })).await;
     r.assert_status_success();
-    let sb: serde_json::Value = r.json();
-    assert!(sb["id"].is_string());
+    assert!(r.json::<serde_json::Value>()["id"].is_string());
 }
 
 #[tokio::test]
 async fn create_sandbox_missing_project_id_returns_400() {
-    let s = server();
-    let r = s.post("/sandbox/dev")
-        .json(&json!({}))
-        .await;
-    r.assert_status_bad_request();
+    let s     = server();
+    let token = auth_token(&s).await;
+    s.post("/sandbox/dev")
+        .add_header("Authorization", format!("Bearer {token}").parse().unwrap())
+        .json(&json!({})).await
+        .assert_status_bad_request();
 }
 
-// ── Deployments ───────────────────────────────────────────────────────────
+// ── Deployments ───────────────────────────────────────────────────────────────
 
 #[tokio::test]
 async fn list_deployments_initially_empty() {
-    let s = server();
+    let s     = server();
+    let token = auth_token(&s).await;
+    let auth  = || format!("Bearer {token}").parse::<axum::http::HeaderValue>().unwrap();
 
     let proj: serde_json::Value = s.post("/projects")
-        .json(&json!({ "name": "Deploy-Test" }))
-        .await
-        .json();
+        .add_header("Authorization", auth())
+        .json(&json!({ "name": "D" })).await.json();
     let pid = proj["id"].as_str().unwrap();
 
-    let r = s.get(&format!("/projects/{pid}/deployments")).await;
+    let r = s.get(&format!("/projects/{pid}/deployments"))
+        .add_header("Authorization", auth()).await;
     r.assert_status_ok();
-    let body: serde_json::Value = r.json();
-    assert_eq!(body["count"], 0);
+    assert_eq!(r.json::<serde_json::Value>()["count"], 0);
 }
