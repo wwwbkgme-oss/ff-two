@@ -93,6 +93,37 @@ while let Ok(event) = rx.recv().await {
 }
 ```
 
+## Tests (SYNC_CONTRACT §8.1 + §8.2)
+
+```bash
+cargo test -p events
+```
+
+Enthält Pflicht-Tests:
+- `sync_contract_replay_tests::replay_produces_deterministic_state` — §8.1 Replay-Test
+- `sync_contract_replay_tests::replay_order_matters` — §8.1 Reihenfolge-Sensitivität
+- `sync_contract_replay_tests::events_with_same_data_produce_equal_json` — §8.2
+
+Demonstriert das Single-Mutation-Path-Muster (SYNC_CONTRACT §5):
+
+```rust
+// Minimaler Reducer — fold über Events
+fn apply(state: usize, event: &WorldEvent) -> usize {
+    match event {
+        WorldEvent::BlockPlaced { .. }               => state + 1,
+        WorldEvent::BlockRemoved { .. }              => state.saturating_sub(1),
+        WorldEvent::FileVisualized { block_count, .. } => state + block_count,
+        _                                             => state,
+    }
+}
+
+let state_a = events.iter().fold(0, |s, e| apply(s, e));
+let state_b = events.iter().fold(0, |s, e| apply(s, e));
+assert_eq!(state_a, state_b); // §8.1
+```
+
+---
+
 ## Serialisierung
 
 Alle Enums nutzen `#[serde(tag = "type", rename_all = "kebab-case")]`.
