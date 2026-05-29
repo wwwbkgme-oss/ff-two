@@ -10,10 +10,13 @@ use tower_http::{
 };
 
 use super::handlers::{deployments, projects, sandbox, security, tasks, world};
+use super::middleware::auth::issue_token;
 use super::state::AppState;
 
 pub fn build(state: AppState) -> Router {
     Router::new()
+        // ── Auth (Dev-Token-Endpoint) ─────────────────────────────────────
+        .route("/auth/token", post(issue_token))
         // ── Health ───────────────────────────────────────────────────────
         .route("/health",  get(health))
         .route("/ready",   get(ready))
