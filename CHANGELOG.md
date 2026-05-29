@@ -8,6 +8,17 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased] — branch `neo/workspace-restructure-k7x2m`
 
+### Production-Readiness v2 (neueste Commits)
+- `runtime/api/src/middleware/auth.rs` — `require_auth` Middleware (Router-Level JWT)
+- `runtime/api/src/router.rs` — Auth auf alle geschützten Routen angewendet (P0 ✅)
+- `runtime/api/tests/integration.rs` — 16 Tests mit JWT-Auth aktualisiert
+- `domain/agents/src/budget.rs` — Token-Budget-Enforcement (P1 ✅)
+- `domain/agents/src/roles/free_llm.rs` — can_afford/debit in FreeLlmAgent verdrahtet
+- `runtime/api/src/metrics.rs` — Prometheus `GET /metrics` (P2 ✅)
+- `domain/security/src/types.rs` — ScanRequest.project_id für Review-Speicherung
+- `runtime/api/src/handlers/security.rs` — list_reviews nicht mehr Stub
+- `runtime/api/src/state.rs` — AppState.scan_reviews Cache
+
 ### Production-Readiness (neueste Commits)
 - `runtime/queue/src/redis.rs` — `RedisQueue`: Reliable Queue via Redis Lists, Dead-Letter, Auto-Select
 - `runtime/sandbox/src/docker.rs` — `DockerSandboxManager`: Container-Isolation, CPU/RAM-Limits, Snapshot/Restore
