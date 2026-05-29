@@ -1,0 +1,11 @@
+[package]
+name    = "devstudio-store"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait      = { workspace = true }
+uuid             = { workspace = true }
+dashmap          = { workspace = true }
+devstudio-types  = { workspace = true }
+devstudio-errors = { workspace = true }

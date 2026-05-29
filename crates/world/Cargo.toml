@@ -1,0 +1,12 @@
+[package]
+name    = "devstudio-world"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio           = { workspace = true }
+tokio-stream    = { workspace = true }
+parking_lot     = { workspace = true }
+uuid            = { workspace = true }
+chrono          = { workspace = true }
+devstudio-types = { workspace = true }

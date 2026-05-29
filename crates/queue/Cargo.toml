@@ -1,0 +1,13 @@
+[package]
+name    = "devstudio-queue"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait      = { workspace = true }
+tokio            = { workspace = true }
+uuid             = { workspace = true }
+anyhow           = { workspace = true }
+tracing          = { workspace = true }
+devstudio-types  = { workspace = true }
+devstudio-errors = { workspace = true }

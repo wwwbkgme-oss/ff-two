@@ -1,0 +1,12 @@
+[package]
+name    = "devstudio-deployment"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio            = { workspace = true }
+chrono           = { workspace = true }
+tracing          = { workspace = true }
+devstudio-types  = { workspace = true }
+devstudio-errors = { workspace = true }
+devstudio-config = { workspace = true }
