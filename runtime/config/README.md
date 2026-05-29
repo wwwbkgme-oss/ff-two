@@ -45,9 +45,13 @@ let key  = settings.agents.anthropic_api_key; // Option<String>
 | `CEREBRAS_API_KEY` | String | — | Cerebras (kostenlos: 60 Req/Min) |
 | `SAMBANOVA_API_KEY` | String | — | SambaNova (forever free, kein CC) |
 | `LLM7_API_KEY` | String | — | LLM7.io (kostenlos: 100 Req/Std) |
+| `MISTRAL_API_KEY` | String | — | Mistral (kostenlos) |
+| `GOOGLE_AI_STUDIO_KEY` | String | — | Gemini / Google AI Studio (kostenlos, 1.500 Req/Tag) |
 | `OLLAMA_BASE_URL` | String | `http://localhost:11434/v1` | Ollama-Endpunkt (kein Key nötig) |
+| **Auth + Security** | | | |
 | `DEVSTUDIO_JWT_SECRET` | String | `change-me-...` | JWT-Signierungsschlüssel |
 | `DEVSTUDIO_JWT_EXPIRY_SECS` | u64 | `86400` | Token-Gültigkeitsdauer |
+| `DEVSTUDIO_RATE_LIMIT_PER_MIN` | u32 | `300` | Rate-Limit pro IP (Req/Min) |
 | `DEVSTUDIO_LOG_LEVEL` | String | `info` | Log-Level |
 | `DEVSTUDIO_LOG_JSON` | bool | `false` | JSON-Logging |
 
