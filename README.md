@@ -43,6 +43,15 @@ infra       →  Cloud-Provisionierung (Pulumi IaC, AWS ECS Fargate)
 | plugins | `gm` | `forgefabrik.gm` — Game-Master-Regelwerk cdylib |
 | plugins | `economy` | `forgefabrik.economy` — Token-Budget cdylib |
 
+## forge-core Sync Contract
+
+Dieses Repo ist Teil des **ForgeFabrik-Federations-Systems**.  
+Compliance-Status: [`FORGE_CORE_SYNC.md`](FORGE_CORE_SYNC.md)  
+Kanonischer Kernel: [`forge-core`](https://github.com/wwwbkgme-oss/forge-core)  
+Architektur-Spec: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+
+---
+
 ## Schnellstart
 
 ```bash
@@ -138,6 +147,19 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Server
 DEVSTUDIO_SERVER_PORT=8080
 ```
+
+## Neue Features (aktuell)
+
+| Feature | Aktivierung |
+|---|---|
+| **PostgresStore** | `DEVSTUDIO_DATABASE_URL=postgres://...` (Auto-Select) |
+| **Task-Dispatch-Loop** | Automatisch — pollt Queue, ruft Agenten auf |
+| **JWT Auth** | `POST /auth/token` + `RequireAuth`-Extractor |
+| **Rate Limiting** | 300 Req/Min/IP (ENV: `DEVSTUDIO_RATE_LIMIT_PER_MIN`) |
+| **Free LLM** | `GROQ_API_KEY` o. ä. → `FreeLlmAgent` (8 Provider, Failover) |
+| **SYNC_CONTRACT §8** | `cargo test -p types -p events` → 6 Pflicht-Tests |
+
+---
 
 ## Make-Targets
 
