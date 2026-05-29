@@ -8,6 +8,11 @@ Statische Code-Analyse — deterministischer Scanner für Security-Findings.
 - Deterministisch: gleiche Eingaben → gleiche Findings (Replay-safe)
 - Regeln sind reine Pattern-Matches auf Zeilenbasis
 
+## Änderungen
+
+`ScanRequest` hat ein optionales `project_id`-Feld — wenn gesetzt, wird das Ergebnis
+über `AppState.scan_reviews` gespeichert und ist via `GET /projects/{id}/reviews` abrufbar.
+
 ## API
 
 ```rust
