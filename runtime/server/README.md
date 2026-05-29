@@ -7,19 +7,35 @@ Binärer Einstiegspunkt für ForgeFabrik DevStudio (`devstudio`).
 Verdrahtet alle Crates zu einem laufenden HTTP-Server:
 
 1. Konfiguration aus `DEVSTUDIO_*` ENV-Variablen / `.env`
-2. `AgentRegistry` mit allen 6 Rollen-Plugins
-3. `Orchestrator` mit konfiguriertem Konsens-Threshold
-4. `MemoryStore` + `MemoryQueue` + `LocalSandboxManager` (Dev-Standard)
-5. `AppState` zusammenbauen
-6. Axum-Server via `runtime/api` starten
+2. Agenten-Modus bestimmen (`has_free_providers()`)
+3. `AgentRegistry` mit 6 Rollen-Plugins (Free-LLM oder Anthropic)
+4. `Orchestrator` mit konfiguriertem Konsens-Threshold
+5. `MemoryStore` + `MemoryQueue` + `LocalSandboxManager` (Dev-Standard)
+6. `AppState` zusammenbauen
+7. Axum-Server via `runtime/api` starten
+
+## Agenten-Modi
+
+| Bedingung | Modus | Agenten |
+|---|---|---|
+| `GROQ_API_KEY` / `OPENROUTER_API_KEY` / … gesetzt | **Free-LLM** | `FreeLlmAgent` (alle 6 Rollen) |
+| `DEVSTUDIO_USE_FREE_LLM=true` | **Free-LLM** | `FreeLlmAgent` + Ollama-Fallback |
+| Nur `ANTHROPIC_API_KEY` gesetzt | **Standard** | `CodingAgent` (Claude) + einfache Agents |
+| kein Key | **Mock** | Alle Agents im Mock-Modus |
 
 ## Starten
 
 ```bash
-# Entwicklung
-cargo run --bin devstudio
+# Mit kostenlosen Agenten (Groq Free Tier)
+GROQ_API_KEY=gsk_... cargo run --bin devstudio
 
-# Release
+# Mit Ollama lokal
+DEVSTUDIO_USE_FREE_LLM=true cargo run --bin devstudio
+
+# Mit Anthropic Claude
+ANTHROPIC_API_KEY=sk-ant-... cargo run --bin devstudio
+
+# Release-Build
 cargo build --release --bin devstudio
 ./target/release/devstudio
 
@@ -28,10 +44,32 @@ make run
 make build
 ```
 
-## build_app_state
+## `build_app_state`
 
-Die Funktion `build_app_state(settings: Settings) -> Result<AppState>` ist öffentlich und kann von anderen Binaries oder Test-Setups wiederverwendet werden.
+```rust
+pub fn build_app_state(s: Settings, use_free_llm: bool) -> Result<AppState>
+```
+
+Öffentlich — kann von Tests oder anderen Binaries genutzt werden.
+
+- `use_free_llm = true` → alle 6 Rollen nutzen `FreeLlmAgent` (forgefabrik.llm-free)
+- `use_free_llm = false` → `CodingAgent` (Anthropic), Rest: einfache Agents
+
+## `has_free_providers`
+
+```rust
+fn has_free_providers() -> bool
+```
+
+Gibt `true` zurück wenn `DEVSTUDIO_USE_FREE_LLM=true` oder mindestens einer der Keys
+`OPENROUTER_API_KEY`, `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `SAMBANOVA_API_KEY`, `LLM7_API_KEY`
+gesetzt ist.
 
 ## Produktions-Upgrade
 
-Für Produktion kann `MemoryStore` durch `PostgresStore` und `MemoryQueue` durch `RedisQueue` ersetzt werden — ohne Änderung an `runtime/api` oder Domain-Crates.
+Für Produktion:
+- `MemoryStore` → `PostgresStore`
+- `MemoryQueue` → `RedisQueue`
+- `LocalSandboxManager` → `DockerSandboxManager`
+
+Keine Änderung an `runtime/api` oder Domain-Crates nötig.

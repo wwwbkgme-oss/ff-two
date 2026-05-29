@@ -38,6 +38,14 @@ let key  = settings.agents.anthropic_api_key; // Option<String>
 | `DEVSTUDIO_AGENT_TEMPERATURE` | f32 | `0.7` | Sampling-Temperatur |
 | `ANTHROPIC_API_KEY` | String | — | Anthropic API Key |
 | `OPENAI_API_KEY` | String | — | OpenAI API Key (optional) |
+| **Free LLM Provider** | | | **forgefabrik.llm-free** |
+| `DEVSTUDIO_USE_FREE_LLM` | bool | `false` | Free-LLM-Modus erzwingen (auch Ollama-only) |
+| `OPENROUTER_API_KEY` | String | — | OpenRouter (kostenlos: `:free`-Modelle) |
+| `GROQ_API_KEY` | String | — | Groq (kostenlos: 14.400 Req/Tag) |
+| `CEREBRAS_API_KEY` | String | — | Cerebras (kostenlos: 60 Req/Min) |
+| `SAMBANOVA_API_KEY` | String | — | SambaNova (forever free, kein CC) |
+| `LLM7_API_KEY` | String | — | LLM7.io (kostenlos: 100 Req/Std) |
+| `OLLAMA_BASE_URL` | String | `http://localhost:11434/v1` | Ollama-Endpunkt (kein Key nötig) |
 | `DEVSTUDIO_JWT_SECRET` | String | `change-me-...` | JWT-Signierungsschlüssel |
 | `DEVSTUDIO_JWT_EXPIRY_SECS` | u64 | `86400` | Token-Gültigkeitsdauer |
 | `DEVSTUDIO_LOG_LEVEL` | String | `info` | Log-Level |

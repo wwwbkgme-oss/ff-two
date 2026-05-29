@@ -39,18 +39,28 @@ infra       →  Pulumi IaC (AWS ECS Fargate)
 | plugins | `agents-runtime` | `forgefabrik.agents` cdylib |
 | plugins | `gm` | `forgefabrik.gm` cdylib |
 | plugins | `economy` | `forgefabrik.economy` cdylib |
+| plugins | `llm-free` | `forgefabrik.llm-free` cdylib+rlib — Free LLM Router |
 
 ## Schnellstart
 
 ```bash
 # 1. Konfiguration
 cp .env.example .env
-# Optional: ANTHROPIC_API_KEY setzen für echte KI-Agenten
 
-# 2. Entwicklungs-Server starten
+# 2a. Kostenlose KI-Agenten aktivieren (kein Credit Card nötig)
+#     Einen der folgenden Keys setzen — oder Ollama lokal starten:
+export GROQ_API_KEY=gsk_...             # https://console.groq.com (kostenlos)
+export OPENROUTER_API_KEY=sk-or-v1-...  # https://openrouter.ai/keys (kostenlos)
+export SAMBANOVA_API_KEY=...            # https://cloud.sambanova.ai (kostenlos, kein CC)
+# ODER: ollama pull qwen2.5-coder:7b && export DEVSTUDIO_USE_FREE_LLM=true
+
+# 2b. Oder: Anthropic Claude verwenden
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# 3. Entwicklungs-Server starten
 make run
 
-# 3. Oder via Docker
+# 4. Oder via Docker
 make docker-up
 ```
 
@@ -100,15 +110,32 @@ POST /deployments/{id}/rollback           Rollback
 
 ## Konfiguration
 
-Alle Settings über `DEVSTUDIO_*` Umgebungsvariablen. Vollständige Referenz in `.env.example`.
+Alle Settings über Umgebungsvariablen. Vollständige Referenz in `.env.example`.
+
+**Agenten-Auswahl** — automatisch anhand gesetzter Keys:
+
+| Keys gesetzt | Agenten-Modus |
+|---|---|
+| `GROQ_API_KEY` / `OPENROUTER_API_KEY` / … | `FreeLlmAgent` (forgefabrik.llm-free) |
+| `DEVSTUDIO_USE_FREE_LLM=true` | `FreeLlmAgent` + Ollama-Fallback |
+| `ANTHROPIC_API_KEY` | `CodingAgent` (Claude) |
+| kein Key | deterministischer Mock |
 
 ```bash
-DEVSTUDIO_SERVER_PORT=8080
-DEVSTUDIO_AGENT_MODEL=claude-opus-4-5
-ANTHROPIC_API_KEY=sk-ant-...
-```
+# Kostenlose Provider (kein CC):
+GROQ_API_KEY=gsk_...
+OPENROUTER_API_KEY=sk-or-v1-...
+SAMBANOVA_API_KEY=...
+CEREBRAS_API_KEY=csk-...
+LLM7_API_KEY=...
+DEVSTUDIO_USE_FREE_LLM=true   # aktiviert auch Ollama-only-Modus
 
-Ohne `ANTHROPIC_API_KEY` laufen Agenten im deterministischen Mock-Modus.
+# Oder: Anthropic Claude
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Server
+DEVSTUDIO_SERVER_PORT=8080
+```
 
 ## Make-Targets
 
@@ -133,8 +160,10 @@ Runtime-ladbare cdylib-Erweiterungen in `plugins/`:
 | `plugins/plugin-agents` | `agents-runtime` | `forgefabrik.agents` | Aufgabenvergabe, Konsens |
 | `plugins/plugin-gm` | `gm` | `forgefabrik.gm` | Regelwerk, GM-Events |
 | `plugins/plugin-economy` | `economy` | `forgefabrik.economy` | Token-Budget, Rate-Limiting |
+| `plugins/plugin-llm-free` | `llm-free` | `forgefabrik.llm-free` | Free LLM Router (OpenRouter, Groq, Cerebras, SambaNova, LLM7, Ollama) |
 
-Jedes Plugin exportiert `plugin_info()` und `plugin_id()` über ein stabiles C-ABI (`#[repr(C)]`).
+Alle Plugins exportieren `plugin_info()` und `plugin_id()` über ein stabiles C-ABI (`#[repr(C)]`).
+`plugin-llm-free` ist zusätzlich als `rlib` statisch linkbar und ersetzt den `CodingAgent` automatisch wenn Free-Provider-Keys gesetzt sind.
 
 ## Infrastructure
 

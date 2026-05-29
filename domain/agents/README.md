@@ -48,4 +48,20 @@ let ok = orchestrator.consensus_met(&task);
 
 ## CodingAgent — Anthropic Claude
 
-`CodingAgent` ruft die Anthropic Claude API auf. Ohne `ANTHROPIC_API_KEY` oder bei leerem Key fällt er auf einen deterministischen Mock zurück (gibt Platzhalter-Code zurück).
+`CodingAgent` ruft die Anthropic Claude API auf. Ohne `ANTHROPIC_API_KEY` oder bei leerem Key fällt er auf einen deterministischen Mock zurück.
+
+## FreeLlmAgent — Kostenlose Provider (forgefabrik.llm-free)
+
+`FreeLlmAgent` aus `plugins/plugin-llm-free` implementiert denselben `DevRolePlugin`-Trait und kann alle 6 Rollen übernehmen. Nutzt ausschließlich dauerhaft kostenlose Provider (OpenRouter `:free`, Groq, Cerebras, SambaNova, LLM7, Ollama).
+
+Wird automatisch aktiviert wenn `GROQ_API_KEY`, `OPENROUTER_API_KEY` o. ä. gesetzt sind:
+
+```rust
+// runtime/server wählt automatisch:
+use llm_free::agent::all_roles;
+for (role, agent) in all_roles() {
+    registry.register(role, agent);
+}
+```
+
+Jeder `FreeLlmAgent` hat einen rollenspezifischen System-Prompt auf Deutsch/Englisch.
