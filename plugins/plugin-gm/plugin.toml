@@ -1,19 +1,14 @@
-# ForgeFabrik Plugin Manifest
+# ForgeFabrik Plugin Manifest — SYNC_CONTRACT v0.1 §6
 
 [plugin]
-id      = "forgefabrik.gm"
-version = "0.1.0"
-kind    = "runtime-plugin"
-author  = "ForgeFabrik"
+id          = "forgefabrik.gm"
+version     = "0.1.0"
+name        = "ForgeFabrik Game Master Plugin"
+description = "Game-Master-Regelwerk: Szenario-Events, Interventions-Scoring"
 
-[plugin.capabilities]
-rule_engine        = true
-scenario_scripting = true
-event_injection    = true
-narrative_control  = true
-npc_behavior       = true
+[capabilities]
+provides = ["game-mode"]
+requires = ["agent"]
 
-[plugin.hooks]
-on_world_tick   = "gm_tick"
-on_task_created = "gm_event_hook"
-on_agent_action = "narrative_update"
+[entry]
+lib = "libgm.so"

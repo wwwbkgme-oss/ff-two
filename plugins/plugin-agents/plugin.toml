@@ -1,21 +1,14 @@
-# ForgeFabrik Plugin Manifest
-# BKG: Plugin-ID ist namespaced (forgefabrik.<domain>)
+# ForgeFabrik Plugin Manifest — SYNC_CONTRACT v0.1 §6
 
 [plugin]
-id      = "forgefabrik.agents"
-version = "0.1.0"
-kind    = "runtime-plugin"
-author  = "ForgeFabrik"
+id          = "forgefabrik.agents"
+version     = "0.1.0"
+name        = "ForgeFabrik Agents Plugin"
+description = "Agenten-Behavior: Aufgabenvergabe, Konsens-Voting"
 
-[plugin.capabilities]
-role_requirements  = true
-role_architecture  = true
-role_coding        = true
-role_testing       = true
-role_security      = true
-role_deployment    = true
-consensus_voting   = true
+[capabilities]
+provides = ["agent"]
+requires = []
 
-[plugin.hooks]
-on_task_created = "try_claim"
-on_task_updated = "recheck_consensus"
+[entry]
+lib = "libagents_runtime.so"

@@ -113,3 +113,18 @@ pub extern "C" fn default_monthly_budget(agent_tier: u8) -> u64 {
         _ => 500_000,  // Prod:      500 Credits
     }
 }
+
+// ── SYNC_CONTRACT v0.1 §6 — Kanonische Plugin-Lifecycle-Hooks ────────────────
+
+struct EconomyPluginLifecycle;
+impl EconomyPluginLifecycle {
+    fn new() -> Self { Self }
+    fn init(&mut self, _ctx: &types::forge_plugin::FfPluginCtx) -> Result<(), String> {
+        tracing::debug!("forgefabrik.economy: ff_plugin_init"); Ok(())
+    }
+    fn tick(&mut self, _tick: u64) -> Result<(), String> { Ok(()) }
+    fn shutdown(&mut self) -> Result<(), String> {
+        tracing::debug!("forgefabrik.economy: ff_plugin_shutdown"); Ok(())
+    }
+}
+types::export_forgefabrik_plugin!(EconomyPluginLifecycle, EconomyPluginLifecycle::new());

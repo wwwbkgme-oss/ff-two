@@ -106,3 +106,18 @@ pub extern "C" fn scenario_seed(project_id_low: u64, tick: u64) -> u64 {
     }
     hash
 }
+
+// ── SYNC_CONTRACT v0.1 §6 — Kanonische Plugin-Lifecycle-Hooks ────────────────
+
+struct GmPluginLifecycle;
+impl GmPluginLifecycle {
+    fn new() -> Self { Self }
+    fn init(&mut self, _ctx: &types::forge_plugin::FfPluginCtx) -> Result<(), String> {
+        tracing::debug!("forgefabrik.gm: ff_plugin_init"); Ok(())
+    }
+    fn tick(&mut self, _tick: u64) -> Result<(), String> { Ok(()) }
+    fn shutdown(&mut self) -> Result<(), String> {
+        tracing::debug!("forgefabrik.gm: ff_plugin_shutdown"); Ok(())
+    }
+}
+types::export_forgefabrik_plugin!(GmPluginLifecycle, GmPluginLifecycle::new());

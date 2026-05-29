@@ -109,3 +109,18 @@ pub extern "C" fn task_priority_score(attempts: u32, age_secs: u64) -> u64 {
     let attempt_weight = (attempts as u64).saturating_mul(60);
     age_secs.saturating_add(attempt_weight)
 }
+
+// ── SYNC_CONTRACT v0.1 §6 — Kanonische Plugin-Lifecycle-Hooks ────────────────
+
+struct AgentsPluginLifecycle;
+impl AgentsPluginLifecycle {
+    fn new() -> Self { Self }
+    fn init(&mut self, _ctx: &types::forge_plugin::FfPluginCtx) -> Result<(), String> {
+        tracing::debug!("forgefabrik.agents: ff_plugin_init"); Ok(())
+    }
+    fn tick(&mut self, _tick: u64) -> Result<(), String> { Ok(()) }
+    fn shutdown(&mut self) -> Result<(), String> {
+        tracing::debug!("forgefabrik.agents: ff_plugin_shutdown"); Ok(())
+    }
+}
+types::export_forgefabrik_plugin!(AgentsPluginLifecycle, AgentsPluginLifecycle::new());

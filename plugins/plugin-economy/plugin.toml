@@ -1,19 +1,14 @@
-# ForgeFabrik Plugin Manifest
+# ForgeFabrik Plugin Manifest — SYNC_CONTRACT v0.1 §6
 
 [plugin]
-id      = "forgefabrik.economy"
-version = "0.1.0"
-kind    = "runtime-plugin"
-author  = "ForgeFabrik"
+id          = "forgefabrik.economy"
+version     = "0.1.0"
+name        = "ForgeFabrik Economy Plugin"
+description = "Token-Budget, Rate-Limiting, Kosten-Tracking"
 
-[plugin.capabilities]
-token_budget       = true
-rate_limiting      = true
-cost_tracking      = true
-quota_enforcement  = true
-billing_events     = true
+[capabilities]
+provides = ["economy"]
+requires = ["agent"]
 
-[plugin.hooks]
-before_agent_call  = "debit_tokens"
-after_agent_call   = "record_usage"
-on_budget_exceeded = "throttle_agent"
+[entry]
+lib = "libeconomy.so"
