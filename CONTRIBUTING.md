@@ -90,21 +90,41 @@ Pflichtdateien:
 - `src/lib.rs` — `plugin_info()` + `plugin_id()` C-ABI-Exports
 - `README.md`
 
+### Neuer Infrastruktur-Driver
+
+I/O-Adapter gehören in `runtime/drivers/`, nicht in `plugins/`.  
+Siehe `ARCHITECTURE.md` für die vollständige Boundary-Spec.
+
+```rust
+// runtime/drivers/src/<name>/mod.rs
+use async_trait::async_trait;
+use agents::SomeTrait;      // Trait aus domain/agents
+use errors::AppResult;
+
+pub struct MyDriver { /* config */ }
+
+#[async_trait]
+impl SomeTrait for MyDriver {
+    async fn do_something(&self) -> AppResult<...> {
+        // HTTP-Call, DB-Zugriff etc.
+    }
+}
+```
+
 ### Neuer Free-LLM-Provider
 
 Nur Provider mit **dauerhaft kostenlosem Tier ohne Kreditkarte**:
 
 ```rust
-// plugins/plugin-llm-free/src/providers/myprovider.rs
-use crate::types::{FreeModel, ProviderConfig};
+// runtime/drivers/src/llm/providers/myprovider.rs
+use crate::llm::types::ProviderConfig;
 
 pub const BASE_URL: &str = "https://api.myprovider.com/v1";
-pub const FREE_MODELS: &[FreeModel] = &[/* ... */];
-pub const DEFAULT_MODEL: &str = "best-free-model";
+pub const DEFAULT:  &str = "best-free-model";
 
 pub fn config() -> Option<ProviderConfig> {
-    let key = std::env::var("MYPROVIDER_API_KEY").ok().filter(|s| !s.is_empty())?;
-    Some(ProviderConfig { name: "MyProvider", base_url: BASE_URL, api_key: Some(key), model: DEFAULT_MODEL })
+    let k = std::env::var("MYPROVIDER_API_KEY").ok().filter(|s| !s.is_empty())?;
+    Some(ProviderConfig { name: "MyProvider", base_url: BASE_URL, api_key: Some(k), model: DEFAULT })
 }
 ```
 
