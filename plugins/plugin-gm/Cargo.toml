@@ -1,0 +1,16 @@
+[package]
+# BKG: Ordnername plugin-gm, Crate-Name gm (kein Konflikt mit bestehenden Crates)
+name        = "gm"
+version     = "0.1.0"
+edition     = "2021"
+description = "forgefabrik.gm — Game-Master Plugin: Regeln, Events, Szenario-Steuerung (cdylib)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }
+rand       = { workspace = true }

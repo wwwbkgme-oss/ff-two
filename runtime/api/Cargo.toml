@@ -33,3 +33,13 @@ config       = { path = "../../runtime/config" }
 [dev-dependencies]
 axum-test  = { workspace = true }
 tokio-test = { workspace = true }
+serde_json = { workspace = true }
+types      = { workspace = true }
+store      = { workspace = true }
+queue      = { workspace = true }
+world      = { workspace = true }
+sandbox    = { workspace = true }
+security   = { workspace = true }
+deployment = { workspace = true }
+agents     = { workspace = true }
+config     = { path = "../../runtime/config" }

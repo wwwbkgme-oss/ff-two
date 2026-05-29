@@ -1,0 +1,15 @@
+[package]
+# BKG: Ordnername plugin-world, Crate-Name world-runtime (domain/world ist bereits "world")
+name        = "world-runtime"
+version     = "0.1.0"
+edition     = "2021"
+description = "forgefabrik.world — Voxel-Welt Plugin (cdylib, runtime-loadable)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+chrono       = { workspace = true }
+uuid         = { workspace = true }

@@ -1,0 +1,15 @@
+[package]
+# BKG: Ordnername plugin-agents, Crate-Name agents-runtime (domain/agents belegt "agents")
+name        = "agents-runtime"
+version     = "0.1.0"
+edition     = "2021"
+description = "forgefabrik.agents — AI-Agenten Plugin (cdylib, runtime-loadable)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }

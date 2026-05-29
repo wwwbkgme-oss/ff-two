@@ -1,0 +1,12 @@
+name: forgefabrik-devstudio
+description: >
+  ForgeFabrik DevStudio — AWS ECS Fargate Infrastructure.
+  Enthält: ECR, VPC, ECS Cluster, ALB, IAM Roles, CloudWatch Logs.
+runtime:
+  name: nodejs
+  options:
+    packagemanager: npm
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-typescript

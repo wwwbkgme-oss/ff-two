@@ -1,0 +1,19 @@
+# ForgeFabrik Plugin Manifest
+
+[plugin]
+id      = "forgefabrik.gm"
+version = "0.1.0"
+kind    = "runtime-plugin"
+author  = "ForgeFabrik"
+
+[plugin.capabilities]
+rule_engine        = true
+scenario_scripting = true
+event_injection    = true
+narrative_control  = true
+npc_behavior       = true
+
+[plugin.hooks]
+on_world_tick   = "gm_tick"
+on_task_created = "gm_event_hook"
+on_agent_action = "narrative_update"

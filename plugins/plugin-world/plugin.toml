@@ -1,0 +1,18 @@
+# ForgeFabrik Plugin Manifest
+# BKG: Plugin-ID ist namespaced (forgefabrik.<domain>)
+
+[plugin]
+id      = "forgefabrik.world"
+version = "0.1.0"
+kind    = "runtime-plugin"
+author  = "ForgeFabrik"
+
+[plugin.capabilities]
+voxel_world        = true
+chunk_streaming    = true
+world_snapshots    = true
+sse_events         = true
+
+[plugin.hooks]
+on_file_change = "visualise_file"
+on_tick        = "world_tick"

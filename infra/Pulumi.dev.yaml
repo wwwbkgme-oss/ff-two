@@ -1,0 +1,9 @@
+config:
+  # AWS-Region
+  aws:region: eu-central-1
+
+  # Anwendungs-Konfiguration
+  forgefabrik-devstudio:containerPort: "8080"
+  forgefabrik-devstudio:cpu: "256"
+  forgefabrik-devstudio:memory: "512"
+  forgefabrik-devstudio:desiredCount: "1"

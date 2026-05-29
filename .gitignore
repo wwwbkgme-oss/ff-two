@@ -4,3 +4,6 @@
 .env.local
 *.pem
 *.key
+
+# Pulumi / Infra
+infra/node_modules/

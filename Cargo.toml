@@ -26,6 +26,11 @@ members = [
     "runtime/sandbox",        # SandboxManager-Trait + Local/Docker
     "runtime/api",            # HTTP/Axum: Router, Handler, AppState
     "runtime/server",         # Binary-Einstiegspunkt
+    # ── plugins ─────────────────────────────────────────────────────────────
+    "plugins/plugin-world",   # forgefabrik.world  — Voxel-Welt (cdylib)
+    "plugins/plugin-agents",  # forgefabrik.agents — AI-Agenten (cdylib)
+    "plugins/plugin-gm",      # forgefabrik.gm     — Game Master (cdylib)
+    "plugins/plugin-economy", # forgefabrik.economy— Ökonomie   (cdylib)
 ]
 resolver = "2"
 

@@ -1,0 +1,19 @@
+# ForgeFabrik Plugin Manifest
+
+[plugin]
+id      = "forgefabrik.economy"
+version = "0.1.0"
+kind    = "runtime-plugin"
+author  = "ForgeFabrik"
+
+[plugin.capabilities]
+token_budget       = true
+rate_limiting      = true
+cost_tracking      = true
+quota_enforcement  = true
+billing_events     = true
+
+[plugin.hooks]
+before_agent_call  = "debit_tokens"
+after_agent_call   = "record_usage"
+on_budget_exceeded = "throttle_agent"
