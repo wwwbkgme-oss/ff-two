@@ -8,6 +8,17 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased] — branch `neo/workspace-restructure-k7x2m`
 
+### forge-core SYNC_CONTRACT v0.1 (neueste Commits)
+- `foundation/types/src/tick.rs` — `WorldTick`, `TickContext`, `DeterministicRng` (SYNC_CONTRACT §3/§4)
+- `foundation/types/src/canonical.rs` — `FreeProvider` (9 Provider), `AgentKind::Free(FreeProvider)` (§7)
+- `foundation/types/src/forge_plugin.rs` — `FfPluginCtx`, `export_forgefabrik_plugin!` Makro (§6)
+- `foundation/types/src/lib.rs` — §8.2+§8.3 Pflicht-Tests (DeterministicRng, TickContext, Snapshot-Roundtrip)
+- `foundation/events/src/lib.rs` — §8.1 Replay-Test + §8.2 Event-Equality (Single-Mutation-Path)
+- Alle 4 Plugins: `ff_plugin_init/tick/shutdown` via `export_forgefabrik_plugin!` (§6)
+- Alle 4 `plugin.toml`: kanonisches Format `[plugin] / [capabilities] / [entry]` (§6)
+- `FORGE_CORE_SYNC.md` — Compliance-Status aller SYNC_CONTRACT-Regeln
+- `ARCHITECTURE.md` — Plugin vs Driver Boundary Spec (freeze-ready)
+
 ### Added
 
 #### Plugin: `forgefabrik.llm-free` (`plugins/plugin-llm-free`)
