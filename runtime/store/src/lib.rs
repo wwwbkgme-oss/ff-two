@@ -1,1 +1,11 @@
-// placeholder — TODO runtime/store
+//! `runtime/store` — Store-Trait + MemoryStore (Persistenzschicht).
+//!
+//! ## BKG-Regel
+//! Runtime-Schicht: verwaltet Datenpersistenz (I/O).
+//! Domänenlogik ist verboten — nur CRUD und Abfragen.
+
+pub mod memory;
+pub mod store;
+
+pub use memory::MemoryStore;
+pub use store::Store;
