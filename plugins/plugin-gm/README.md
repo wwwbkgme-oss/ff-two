@@ -32,3 +32,32 @@ uint64_t scenario_seed(uint64_t project_id_low, uint64_t tick);
 Capabilities in `plugin.toml`:
 - `rule_engine`, `scenario_scripting`, `event_injection`
 - `narrative_control`, `npc_behavior`
+
+---
+
+## Kanonische Lifecycle-ABI (SYNC_CONTRACT §6, nachträglich ergänzt)
+
+```c
+int32_t ff_plugin_init(const FfPluginCtx* ctx);
+int32_t ff_plugin_tick(uint64_t tick);
+int32_t ff_plugin_shutdown();
+```
+
+Implementiert via `types::export_forgefabrik_plugin!` Makro.
+
+## Plugin.toml (kanonisches Format)
+
+```toml
+[plugin]
+id          = "forgefabrik.gm"
+version     = "0.1.0"
+name        = "ForgeFabrik Game Master Plugin"
+description = "..."
+
+[capabilities]
+provides = ["game-mode"]
+requires = ["agent"]
+
+[entry]
+lib = "libgm.so"
+```

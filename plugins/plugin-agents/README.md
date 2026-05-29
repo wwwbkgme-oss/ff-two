@@ -44,3 +44,32 @@ uint64_t task_priority_score(uint32_t attempts, uint64_t age_secs);
 
 Capabilities in `plugin.toml`:
 - Alle 6 Rollen + `consensus_voting`
+
+---
+
+## Kanonische Lifecycle-ABI (SYNC_CONTRACT §6, nachträglich ergänzt)
+
+```c
+int32_t ff_plugin_init(const FfPluginCtx* ctx);
+int32_t ff_plugin_tick(uint64_t tick);
+int32_t ff_plugin_shutdown();
+```
+
+Implementiert via `types::export_forgefabrik_plugin!` Makro.
+
+## Plugin.toml (kanonisches Format)
+
+```toml
+[plugin]
+id          = "forgefabrik.agents"
+version     = "0.1.0"
+name        = "ForgeFabrik Agents Plugin"
+description = "..."
+
+[capabilities]
+provides = ["agent"]
+requires = [""]
+
+[entry]
+lib = "libagents_runtime.so"
+```

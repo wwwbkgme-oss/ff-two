@@ -45,3 +45,32 @@ uint64_t default_monthly_budget(uint8_t agent_tier);
 
 Capabilities in `plugin.toml`:
 - `token_budget`, `rate_limiting`, `cost_tracking`, `quota_enforcement`, `billing_events`
+
+---
+
+## Kanonische Lifecycle-ABI (SYNC_CONTRACT §6, nachträglich ergänzt)
+
+```c
+int32_t ff_plugin_init(const FfPluginCtx* ctx);
+int32_t ff_plugin_tick(uint64_t tick);
+int32_t ff_plugin_shutdown();
+```
+
+Implementiert via `types::export_forgefabrik_plugin!` Makro.
+
+## Plugin.toml (kanonisches Format)
+
+```toml
+[plugin]
+id          = "forgefabrik.economy"
+version     = "0.1.0"
+name        = "ForgeFabrik Economy Plugin"
+description = "..."
+
+[capabilities]
+provides = ["economy"]
+requires = ["agent"]
+
+[entry]
+lib = "libeconomy.so"
+```
