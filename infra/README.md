@@ -1,61 +1,91 @@
- # AWS TypeScript Pulumi Template
+# ForgeFabrik DevStudio — AWS ECS Fargate Infrastructure
 
- A minimal Pulumi template for provisioning AWS infrastructure using TypeScript. This template creates an Amazon S3 bucket and exports its name.
+Pulumi TypeScript IaC für den DevStudio-Server auf AWS ECS Fargate.
 
- ## Prerequisites
+## Ressourcen
 
- - Pulumi CLI (>= v3): https://www.pulumi.com/docs/get-started/install/
- - Node.js (>= 14): https://nodejs.org/
- - AWS credentials configured (e.g., via `aws configure` or environment variables)
+| Ressource | Beschreibung |
+|---|---|
+| ECR Repository | Docker-Image-Registry mit Lifecycle-Policy (max. 10 Images) |
+| VPC (awsx) | 2 AZs, public + private Subnetze |
+| Security Groups | ALB-SG (Port 80 öffentlich) + Task-SG (nur vom ALB) |
+| ECS Cluster | Fargate, Container Insights aktiviert |
+| IAM Roles | Execution Role (ECR Pull, CloudWatch) + Task Role |
+| CloudWatch Logs | Log Group mit 7 Tagen Retention |
+| Task Definition | Fargate, konfigurierbare CPU/Memory, Health Check |
+| Application Load Balancer | Internet-facing, HTTP |
+| ECS Service | Fargate, private Subnetze, Circuit Breaker + Rollback |
 
- ## Getting Started
+## Voraussetzungen
 
- 1. Initialize a new Pulumi project:
+- [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/) ≥ v3
+- Node.js ≥ 18
+- AWS-Credentials (`aws configure` oder `AWS_*` ENV-Variablen)
 
-    ```bash
-    pulumi new aws-typescript
-    ```
+## Deployment
 
-    Follow the prompts to set your:
-    - Project name
-    - Project description
-    - AWS region (defaults to `us-east-1`)
+```bash
+# Abhängigkeiten installieren
+npm install
 
- 2. Preview and deploy your infrastructure:
+# Stack initialisieren (einmalig)
+pulumi stack init dev
 
-    ```bash
-    pulumi preview
-    pulumi up
-    ```
+# Konfiguration setzen (oder Pulumi.dev.yaml verwenden)
+pulumi config set aws:region eu-central-1
 
- 3. When you're finished, tear down your stack:
+# Vorschau
+pulumi preview
 
-    ```bash
-    pulumi destroy
-    pulumi stack rm
-    ```
+# Deployen
+pulumi up
+```
 
- ## Project Layout
+## Konfiguration
 
- - `Pulumi.yaml` — Pulumi project and template metadata
- - `index.ts` — Main Pulumi program (creates an S3 bucket)
- - `package.json` — Node.js dependencies
- - `tsconfig.json` — TypeScript compiler options
+| Key | Beschreibung | Default |
+|---|---|---|
+| `aws:region` | AWS-Region | `eu-central-1` |
+| `containerPort` | Container-Port | `8080` |
+| `cpu` | Fargate CPU Units | `256` |
+| `memory` | Fargate Memory (MB) | `512` |
+| `desiredCount` | Gewünschte Task-Anzahl | `1` |
+| `appImage` | Vollständiges Image-Tag (optional) | ECR Repo:latest |
 
- ## Configuration
+```bash
+pulumi config set forgefabrik-devstudio:cpu 512
+pulumi config set forgefabrik-devstudio:desiredCount 2
+```
 
- | Key           | Description                             | Default     |
- | ------------- | --------------------------------------- | ----------- |
- | `aws:region`  | The AWS region to deploy resources into | `us-east-1` |
+## Outputs
 
- Use `pulumi config set <key> <value>` to customize configuration.
+Nach `pulumi up` stehen folgende Outputs zur Verfügung:
 
- ## Next Steps
+```bash
+pulumi stack output serviceUrl      # http://<alb-dns>
+pulumi stack output healthEndpoint  # http://<alb-dns>/health
+pulumi stack output ecrRepositoryUrl
+pulumi stack output logGroupName
+```
 
- - Extend `index.ts` to provision additional resources (e.g., VPCs, Lambda functions, DynamoDB tables).
- - Explore [Pulumi AWSX](https://www.pulumi.com/docs/reference/pkg/awsx/) for higher-level AWS components.
- - Consult the [Pulumi documentation](https://www.pulumi.com/docs/) for more examples and best practices.
+## Docker-Image pushen
 
- ## Getting Help
+```bash
+# ECR-Repository-URL ermitteln
+REPO=$(pulumi stack output ecrRepositoryUrl)
 
- If you encounter any issues or have suggestions, please open an issue in this repository.
+# AWS ECR Login
+aws ecr get-login-password --region eu-central-1 \
+  | docker login --username AWS --password-stdin "$REPO"
+
+# Image bauen und pushen
+docker build -t "$REPO:latest" ../
+docker push "$REPO:latest"
+```
+
+## Teardown
+
+```bash
+pulumi destroy
+pulumi stack rm dev
+```
