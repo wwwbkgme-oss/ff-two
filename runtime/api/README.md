@@ -86,6 +86,28 @@ Alle Fehler folgen diesem Schema:
 
 Vollständige Code-Liste: `foundation/errors/README.md`.
 
+## Neue Endpoints
+
+| Endpoint | Beschreibung |
+|---|---|
+| `POST /auth/token` | JWT-Token ausstellen (Dev, kein CC) |
+| `GET /metrics` | Prometheus-Scrape-Endpoint (public) |
+
+## Auth
+
+Alle Endpoints außer `/auth/token`, `/health`, `/ready`, `/metrics` sind durch JWT gesichert:
+
+```bash
+# Token holen
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"sub":"dev","secret":"change-me-in-production-use-a-strong-random-value"}' \
+  | jq -r .token)
+
+# Geschützten Endpoint aufrufen
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/projects
+```
+
 ## Middleware (Reihenfolge)
 
 1. `TraceLayer` — strukturiertes Request-Tracing (tracing-subscriber)
