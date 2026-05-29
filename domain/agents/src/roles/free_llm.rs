@@ -17,6 +17,7 @@ use uuid::Uuid;
 use errors::{AppError, AppResult};
 use types::{AgentRole, ChangeKind, CodeChange, SandboxExecResult, Task, TaskClaim};
 
+use crate::budget::TokenBudget;
 use crate::llm_driver::LlmDriver;
 use crate::traits::{AgentOutput, BuildResult, DevRolePlugin, Review};
 
@@ -76,12 +77,26 @@ pub struct FreeLlmAgent {
     pub role:       AgentRole,
     driver:         Arc<dyn LlmDriver>,
     pub max_tokens: u32,
+    /// Token-Budget für diesen Agenten (optional — unbegrenzt wenn None).
+    budget:         Option<Arc<TokenBudget>>,
 }
 
 impl FreeLlmAgent {
     /// Erstellt einen neuen `FreeLlmAgent` mit dem gegebenen Driver.
+    /// Standard: Dev-Budget (10 Credits).
     pub fn new(role: AgentRole, driver: Arc<dyn LlmDriver>) -> Self {
-        Self { id: Uuid::new_v4(), role, driver, max_tokens: 4096 }
+        Self {
+            id:         Uuid::new_v4(),
+            role,
+            driver,
+            max_tokens: 4096,
+            budget:     Some(TokenBudget::dev()),
+        }
+    }
+
+    /// Ohne Budget-Limit (z. B. für Tests).
+    pub fn new_unlimited(role: AgentRole, driver: Arc<dyn LlmDriver>) -> Self {
+        Self { id: Uuid::new_v4(), role, driver, max_tokens: 4096, budget: None }
     }
 
     /// Erstellt alle 6 Rollen-Agents mit dem gleichen Driver.
@@ -101,11 +116,26 @@ impl FreeLlmAgent {
     }
 
     async fn call(&self, user: impl Into<String>) -> AppResult<String> {
+        // ── Budget-Check ──────────────────────────────────────────────────────
+        if let Some(budget) = &self.budget {
+            if !budget.can_afford(self.max_tokens) {
+                return Err(AppError::Agent(
+                    "Token-Budget erschöpft — setze DEVSTUDIO_AGENT_BUDGET_MILLI für mehr Credits".into()
+                ));
+            }
+        }
+
         let system = system_prompt(&self.role);
         let user   = user.into();
 
         match self.driver.chat(system, &user, self.max_tokens).await {
             Ok(resp) => {
+                // ── Budget-Debit ───────────────────────────────────────────────
+                if let Some(budget) = &self.budget {
+                    let output_toks = resp.tokens.unwrap_or(self.max_tokens / 2);
+                    let input_toks  = user.split_whitespace().count() as u32;
+                    budget.debit(input_toks, output_toks);
+                }
                 debug!(
                     provider = %resp.provider,
                     model    = %resp.model,
