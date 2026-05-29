@@ -1,33 +1,29 @@
-//! JWT Bearer-Token Authentifizierung als Axum-Extractor.
+//! JWT Bearer-Token Authentifizierung — Middleware + Extractor + Token-Endpoint.
 //!
-//! ## Verwendung
-//!
-//! ```rust
-//! use api::middleware::auth::RequireAuth;
-//!
-//! // Handler-Parameter — erzwingt gültiges JWT
-//! async fn my_handler(
-//!     RequireAuth(claims): RequireAuth,
-//!     State(s): State<AppState>,
-//! ) -> ApiResult<Json<Value>> {
-//!     // claims.sub enthält den Aufrufer
-//!     Ok(Json(json!({ "user": claims.sub })))
-//! }
+//! ## Router-Level-Middleware (empfohlen)
+//! ```rust,ignore
+//! Router::new()
+//!     .route("/projects", post(create))
+//!     .layer(middleware::from_fn_with_state(state.clone(), require_auth))
 //! ```
 //!
-//! ## Token erzeugen (CLI-Beispiel)
+//! ## Per-Handler-Extractor
+//! ```rust,ignore
+//! async fn handler(RequireAuth(claims): RequireAuth, ...) { }
+//! ```
+//!
+//! ## Token erzeugen (Dev)
 //! ```bash
-//! # Temporärer Dev-Token (Ablauf: 24 h)
 //! curl -s -X POST http://localhost:8080/auth/token \
 //!      -H 'Content-Type: application/json' \
 //!      -d '{"sub":"dev","secret":"change-me-in-production-use-a-strong-random-value"}'
 //! ```
-//!
-//! Das JWT-Secret wird aus `DEVSTUDIO_JWT_SECRET` gelesen.
 
 use axum::{
-    extract::FromRequestParts,
+    body::Body,
+    extract::{FromRequestParts, Request, State},
     http::{request::Parts, StatusCode},
+    middleware::Next,
     response::{IntoResponse, Response},
     Json,
 };
@@ -39,84 +35,61 @@ use crate::state::AppState;
 
 // ── Claims ────────────────────────────────────────────────────────────────────
 
-/// JWT-Payload — wird in jedem authentifizierten Request verfügbar.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    /// Subject — Aufrufer-Identität (z. B. User-ID oder API-Key-ID).
     pub sub: String,
-    /// Expiry — Unix-Timestamp (Sekunden).
     pub exp: u64,
-    /// Issued-At — Unix-Timestamp (Sekunden).
     pub iat: u64,
 }
 
 // ── Extractor ─────────────────────────────────────────────────────────────────
 
-/// Axum-Extractor: erzwingt gültiges Bearer-Token und gibt Claims zurück.
-///
-/// Antwortet mit 401 wenn:
-/// * `Authorization`-Header fehlt
-/// * Token kein Bearer-Token
-/// * Signatur ungültig
-/// * Token abgelaufen
+/// Handler-Extractor — erzwingt gültiges Bearer-Token.
 pub struct RequireAuth(pub Claims);
 
 impl FromRequestParts<AppState> for RequireAuth {
     type Rejection = Response;
 
     async fn from_request_parts(
-        parts:  &mut Parts,
-        state:  &AppState,
+        parts: &mut Parts,
+        state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        // ── Authorization-Header lesen ──────────────────────────────────────
-        let header = parts
-            .headers
-            .get("Authorization")
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| unauthorized("Authorization header fehlt"))?;
+        verify_bearer(&parts.headers, state)
+            .map(RequireAuth)
+            .map_err(|m| unauthorized(&m))
+    }
+}
 
-        let token = header
-            .strip_prefix("Bearer ")
-            .ok_or_else(|| unauthorized("Bearer-Token erwartet"))?;
+// ── Router-Level-Middleware ───────────────────────────────────────────────────
 
-        // ── JWT validieren ─────────────────────────────────────────────────
-        let secret  = state.settings.auth.jwt_secret.as_bytes();
-        let key     = DecodingKey::from_secret(secret);
-        let validation = Validation::default();
-
-        let data = decode::<Claims>(token, &key, &validation).map_err(|e| {
-            let msg = match e.kind() {
-                ErrorKind::ExpiredSignature => "Token abgelaufen",
-                ErrorKind::InvalidSignature => "Ungültige Signatur",
-                ErrorKind::InvalidToken     => "Ungültiges Token-Format",
-                _                           => "Token-Validierung fehlgeschlagen",
-            };
-            unauthorized(msg)
-        })?;
-
-        Ok(RequireAuth(data.claims))
+/// Axum-Middleware: prüft JWT für eine gesamte Router-Gruppe.
+/// 401 wenn kein/ungültiges Token — leitet durch wenn ok.
+pub async fn require_auth(
+    State(state): State<AppState>,
+    request: Request<Body>,
+    next:    Next,
+) -> Response {
+    match verify_bearer(request.headers(), &state) {
+        Ok(_claims) => next.run(request).await,
+        Err(msg)    => unauthorized(&msg),
     }
 }
 
 // ── Token-Endpoint ────────────────────────────────────────────────────────────
 
-/// Request-Body für `POST /auth/token`.
 #[derive(Debug, Deserialize)]
 pub struct TokenRequest {
     pub sub:    String,
     pub secret: String,
 }
 
-/// Erzeugt einen JWT (nur für Development/Tests — kein Produktions-Endpoint).
-///
-/// In Produktion: externe Auth-Provider (Keycloak, Auth0, etc.) verwenden.
+/// `POST /auth/token` — Dev-Endpoint (nicht für Produktion).
 pub async fn issue_token(
-    axum::extract::State(state): axum::extract::State<AppState>,
-    Json(body): Json<TokenRequest>,
+    State(state): State<AppState>,
+    Json(body):   Json<TokenRequest>,
 ) -> Response {
     use jsonwebtoken::{encode, EncodingKey, Header};
 
-    // Secret prüfen (verhindert versehentliche Token-Ausstellung ohne Konfiguration)
     if body.secret != state.settings.auth.jwt_secret {
         return unauthorized("Falsches Secret");
     }
@@ -132,27 +105,53 @@ pub async fn issue_token(
         exp: now + state.settings.auth.token_expiry_secs,
     };
 
-    let key = EncodingKey::from_secret(state.settings.auth.jwt_secret.as_bytes());
-    match encode(&Header::default(), &claims, &key) {
+    match encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(state.settings.auth.jwt_secret.as_bytes()),
+    ) {
         Ok(token) => (
             StatusCode::OK,
-            Json(json!({ "token": token, "expires_in": state.settings.auth.token_expiry_secs })),
-        )
-            .into_response(),
+            Json(json!({
+                "token":      token,
+                "expires_in": state.settings.auth.token_expiry_secs,
+            })),
+        ).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": { "code": "TOKEN_ERROR", "message": e.to_string() } })),
-        )
-            .into_response(),
+        ).into_response(),
     }
 }
 
-// ── Hilfsfunktion ─────────────────────────────────────────────────────────────
+// ── Interne Hilfen ────────────────────────────────────────────────────────────
+
+fn verify_bearer(headers: &axum::http::HeaderMap, state: &AppState) -> Result<Claims, String> {
+    let header = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .ok_or("Authorization header fehlt")?;
+
+    let token = header
+        .strip_prefix("Bearer ")
+        .ok_or("Bearer-Token erwartet")?;
+
+    let key        = DecodingKey::from_secret(state.settings.auth.jwt_secret.as_bytes());
+    let validation = Validation::default();
+
+    decode::<Claims>(token, &key, &validation)
+        .map(|d| d.claims)
+        .map_err(|e| match e.kind() {
+            ErrorKind::ExpiredSignature => "Token abgelaufen".to_owned(),
+            ErrorKind::InvalidSignature => "Ungültige Signatur".to_owned(),
+            ErrorKind::InvalidToken     => "Ungültiges Token-Format".to_owned(),
+            _                           => format!("Token ungültig: {e}"),
+        })
+}
 
 fn unauthorized(msg: &str) -> Response {
     (
         StatusCode::UNAUTHORIZED,
         Json(json!({ "error": { "code": "UNAUTHORIZED", "message": msg } })),
-    )
-        .into_response()
+    ).into_response()
 }
