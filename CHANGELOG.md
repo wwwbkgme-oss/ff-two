@@ -62,8 +62,27 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Changed
 - `runtime/api/Cargo.toml` — dev-dependencies erweitert für Integration-Tests
-- `runtime/server/Cargo.toml` — `types` und `llm-free` als Abhängigkeiten
-- `Cargo.toml` (Workspace) — `plugins/plugin-llm-free` als Member + workspace dep
+- `runtime/server/Cargo.toml` — `types` und `drivers` als Abhängigkeiten
+- `Cargo.toml` (Workspace) — `runtime/drivers` als Member, `plugin-llm-free` deprecated
+
+#### Architektur-Refactoring (Plugin vs Driver Boundary)
+- `ARCHITECTURE.md` — freeze-ready Spec: Plugin = Behavior, Driver = I/O
+- `domain/agents/src/llm_driver.rs` — `LlmDriver`-Trait + `NullDriver` (kein I/O)
+- `domain/agents/src/roles/free_llm.rs` — `FreeLlmAgent` mit Dependency Injection
+- `runtime/drivers/` — neues Crate: `FreeProviderDriver` implementiert `LlmDriver`
+  - 8 Provider: OpenRouter, Groq, Cerebras, SambaNova, Mistral, Gemini, LLM7, Ollama
+  - Failover-Router, OpenAI-kompatibler HTTP-Client
+- `plugins/plugin-llm-free/DEPRECATED.md` — Migration zu `runtime/drivers/llm`
+
+#### Sprint 1–4 (vorheriger Stand)
+- `runtime/server/src/dispatcher.rs` — Task-Dispatch-Loop
+- `runtime/store/src/postgres.rs` — PostgresStore (JSONB + Auto-Select)
+- `runtime/store/migrations/001_initial.sql` — DB-Schema
+- `runtime/api/src/middleware/auth.rs` — JWT `RequireAuth` + `POST /auth/token`
+- `runtime/api/src/middleware/rate_limit.rs` — IP Rate Limiting (300 Req/Min)
+- `.github/workflows/ci.yml` — Check, Lint, Test, Infra TypeScript
+- `runtime/drivers/src/llm/providers/mistral.rs` — Mistral Free Tier
+- `runtime/drivers/src/llm/providers/gemini.rs` — Google AI Studio Free Tier
 
 ---
 
