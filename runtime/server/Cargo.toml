@@ -9,10 +9,12 @@ name = "devstudio"
 path = "src/main.rs"
 
 [dependencies]
-tokio      = { workspace = true }
-anyhow     = { workspace = true }
-dotenvy    = { workspace = true }
-tracing    = { workspace = true }
+tokio        = { workspace = true }
+anyhow       = { workspace = true }
+dotenvy      = { workspace = true }
+tracing      = { workspace = true }
+serde_json   = { workspace = true }
+chrono       = { workspace = true }
 types      = { workspace = true }
 world      = { workspace = true }
 agents     = { workspace = true }
