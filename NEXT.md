@@ -1,63 +1,41 @@
 # Next Steps — ForgeFabrik DevStudio
 
-Geplante Weiterentwicklung nach dem aktuellen Stand (`neo/workspace-restructure-k7x2m`).
-
-Priorisierung: **P0** = blockiert Production, **P1** = wichtig, **P2** = wertvoll, **P3** = nice-to-have.
-
----
-
-## P0 — Blocking: Production-Readiness
-
-### ~~Task Dispatch Loop~~ ✅ `runtime/server/src/dispatcher.rs`
-**Was fehlt:** Der `Orchestrator` ist verdrahtet, aber nichts pollt die Queue und ruft Agenten auf.  
-Die Tasks landen in `MemoryQueue.push()` und bleiben dort — keine automatische Verarbeitung.
-
-**Ziel:**
-```
-runtime/server
-└── dispatcher.rs   — spawn_dispatcher(state): JoinHandle<()>
-    loop {
-        task = queue.pop().await
-        plugin = orchestrator.select_plugin(&task)
-        result = plugin.execute(&task, &sandbox_exec_result)
-        store.update_task(...)
-        queue.ack(task.id)
-    }
-```
-
-**Scope:** `runtime/server/src/dispatcher.rs` + Integration in `main.rs`
+Roadmap nach aktuellem Stand (`neo/workspace-restructure-k7x2m`).  
+Priorisierung: **P0** = blockiert Production · **P1** = wichtig · **P2** = wertvoll · **P3** = nice-to-have
 
 ---
 
-### ~~PostgresStore~~ ✅ `runtime/store/src/postgres.rs`
+## Erledigte Items ✅
 
-### Auth-Middleware
-**Was fehlt (noch):** `RequireAuth`-Extractor ist verfügbar, aber noch nicht auf Routen angewendet.
+| Sprint | Item | Datei / Scope |
+|---|---|---|
+| 1 | Task Dispatch Loop | `runtime/server/src/dispatcher.rs` |
+| 1 | GitHub Actions CI/CD | `.github/workflows/ci.yml` |
+| 1 | JWT Auth-Middleware + /auth/token | `runtime/api/src/middleware/auth.rs` |
+| 2 | PostgresStore (JSONB + Migrations) | `runtime/store/src/postgres.rs` |
+| 2 | Auto-Select Store per DATABASE_URL | `runtime/server/src/main.rs` |
+| 3 | IP Rate Limiting (Sliding-Window) | `runtime/api/src/middleware/rate_limit.rs` |
+| 4 | Mistral + Google Gemini Free Provider | `plugins/plugin-llm-free/providers/` |
+| **Arch** | **ARCHITECTURE.md** — Plugin vs Driver Spec | `ARCHITECTURE.md` |
+| **Arch** | **LlmDriver-Trait** in domain/agents | `domain/agents/src/llm_driver.rs` |
+| **Arch** | **FreeLlmAgent** mit DI in domain/agents | `domain/agents/src/roles/free_llm.rs` |
+| **Arch** | **runtime/drivers** — neues Infra-Adapter-Crate | `runtime/drivers/` |
+| **Arch** | **plugin-llm-free deprecated** — ersetzt durch drivers | `DEPRECATED.md` |
 
 ---
 
-### PostgresStore ✅ (implementiert, wartend auf Postgres-Instanz)
-**Implementiert:** `DEVSTUDIO_DATABASE_URL=postgres://...` aktiviert PostgresStore automatisch.  
-**Ziel:** `runtime/store/src/postgres.rs` — `sqlx` PostgreSQL-Backend hinter demselben `Store`-Trait.  
-`DEVSTUDIO_DATABASE_URL=postgres://...` aktiviert ihn automatisch.
+## P0 — Blocking
 
-**Migration:** `sqlx` Migrations in `runtime/store/migrations/`.
-
----
-
-### Auth-Middleware
-**Was fehlt:** Alle API-Endpunkte sind ohne Authentifizierung erreichbar.  
-**Ziel:** JWT Bearer-Token Validation in Axum-Middleware.  
-`DEVSTUDIO_JWT_SECRET` ist bereits in Settings; Middleware fehlt noch.
+### Auth auf Routen anwenden
+`RequireAuth`-Extractor ist implementiert (`middleware/auth.rs`), aber noch nicht auf Routen gesetzt.  
+Alle `/projects`, `/tasks`, `/deployments` etc. sind noch öffentlich erreichbar.
 
 ```rust
-// runtime/api/src/middleware/auth.rs
-async fn require_auth(
-    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
-    State(state): State<AppState>,
-    request: Request,
-    next: Next,
-) -> Response { ... }
+async fn create_project(
+    RequireAuth(claims): RequireAuth,   // ← hinzufügen
+    State(s): State<AppState>,
+    Json(b): Json<CreateProjectRequest>,
+) -> ApiResult<...> { ... }
 ```
 
 ---
@@ -65,167 +43,158 @@ async fn require_auth(
 ## P1 — Wichtig
 
 ### RedisQueue
-**Was fehlt:** `MemoryQueue` ist single-process, verliert Daten bei Neustart.  
-**Ziel:** `runtime/queue/src/redis.rs` — Redis Streams als persistente Queue.  
-`DEVSTUDIO_REDIS_URL=redis://...` aktiviert automatisch.
+`MemoryQueue` ist single-process — kein Multi-Instance-Betrieb möglich, Daten gehen beim Restart verloren.
 
----
-
-### DockerSandboxManager
-**Was fehlt:** `LocalSandboxManager` bietet keine Prozessisolation.  
-**Ziel:** `runtime/sandbox/src/docker.rs` — Container-basierte Ausführung via `bollard`.
-
-```rust
-// DEVSTUDIO_SANDBOX_USE_DOCKER=true → DockerSandboxManager
-// Jede Sandbox = ein kurzlebiger Docker-Container
-// Image: forgefabrik/devstudio-sandbox:latest (Alpine + Rust + Node)
+```
+runtime/queue/src/redis.rs   — TaskQueue-Impl via Redis Streams
+DEVSTUDIO_REDIS_URL=redis://... aktiviert automatisch
 ```
 
 ---
 
-### GitHub Actions CI/CD
-**Was fehlt:** Kein automatisierter CI-Pipeline.  
-**Ziel:** `.github/workflows/ci.yml`
+### DockerSandboxManager
+`LocalSandboxManager` führt Code im Host-Prozess aus — keine Isolation.
 
-```yaml
-on: [push, pull_request]
-jobs:
-  check:   cargo check --workspace
-  test:    cargo test --workspace
-  lint:    cargo clippy -- -D warnings
-  fmt:     cargo fmt -- --check
-  infra:   cd infra && npm install && npx tsc --noEmit
+```
+runtime/sandbox/src/docker.rs  — Container via bollard (rustls)
+DEVSTUDIO_SANDBOX_USE_DOCKER=true aktiviert automatisch
+Image: forgefabrik/devstudio-sandbox:latest
 ```
 
 ---
 
 ### OpenAPI / Swagger UI
-**Was fehlt:** Kein maschinenlesbarer API-Vertrag.  
-**Ziel:** `utoipa` + `utoipa-swagger-ui` Integration in `runtime/api`.  
-Swagger UI erreichbar unter `GET /api-docs`.
+Kein maschinenlesbarer API-Vertrag.
+
+```
+utoipa + utoipa-swagger-ui
+GET /api-docs  → Swagger UI
+GET /api-docs/openapi.json  → OpenAPI 3.1 Spec
+```
 
 ---
 
-### LLM Streaming (plugin-llm-free)
-**Was fehlt:** `chat_request_json()` wartet auf vollständige Antwort (kein Streaming).  
-**Ziel:** `stream_chat()` in `router.rs` — Tokio async stream über SSE-fähige OpenAI-API.  
-Agents können Token-für-Token-Output an Clients weiterleiten.
+### LLM Streaming
+`FreeLlmAgent.execute()` blockiert bis die vollständige Antwort da ist (~5–30s bei großen Modellen).
+
+```
+router.rs: stream_chat() → tokio_stream::Stream<Item = String>
+Agent streamt Token-für-Token an SSE-Endpoint
+GET /tasks/{id}/stream → SSE Token-Stream
+```
 
 ---
 
-### Token-Budget-Enforcement (plugin-llm-free + plugin-economy)
-**Was fehlt:** `plugin-economy` enthält bereits die Berechnungslogik, aber nichts nutzt sie.  
-**Ziel:** `FreeLlmAgent` ruft `economy::estimate_cost_milli()` vor jedem API-Call auf  
-und bricht ab wenn `budget_sufficient() == 0`.
+### Token-Budget-Enforcement
+`plugin-economy` enthält `estimate_cost_milli()` und `budget_sufficient()`, aber `FreeLlmAgent` nutzt sie nicht.
+
+```rust
+// in agent.rs vor jedem LLM-Call:
+let cost = economy::estimate_cost_milli(tier, prompt_tokens, max_tokens);
+if economy::budget_sufficient(remaining, cost) == 0 {
+    return Err(AppError::Agent("Token-Budget erschöpft".into()));
+}
+```
 
 ---
 
 ## P2 — Wertvoll
 
 ### Dynamic Plugin Loader
-**Was fehlt:** Plugins werden aktuell statisch gelinkt (oder nur als cdylib gebaut, aber nicht geladen).  
-**Ziel:** `runtime/server/src/plugin_loader.rs` — lädt `*.so`/`*.dylib` aus `~/.devstudio/plugins/`  
-zur Laufzeit via `libloading`.
+Plugins sind aktuell statisch gelinkt. Echte Runtime-Lösung via `libloading`:
 
-```rust
-// Scan plugin dir → dlopen → plugin_info() → register capabilities
+```
+runtime/server/src/plugin_loader.rs
+Scannt ~/.devstudio/plugins/*.so → dlopen → plugin_info() → register
 ```
 
 ---
 
 ### WebSocket — Agenten-Status-Stream
-**Was fehlt:** Clients können aktuell nur `WorldEvent`-SSE empfangen.  
-**Ziel:** `WS /agents/stream` — Echtzeit-Updates zu laufenden Agenten  
-(`AgentEvent::TaskStarted`, `AgentEvent::TaskDone`, etc.)
+Clients können nur `WorldEvent`-SSE empfangen. Agenten-Status fehlt.
+
+```
+WS /agents/stream → AgentEvent::TaskStarted, TaskDone, ...
+```
 
 ---
 
-### ~~Rate Limiting~~ ✅ `runtime/api/src/middleware/rate_limit.rs`  
-**Ziel:** `tower_governor` oder eigene `tower::Layer` für IP-basiertes Rate Limiting.
+### Prometheus Metriken
+Kein Observability-Endpoint.
 
----
-
-### Metriken / Prometheus
-**Was fehlt:** Kein Observability-Endpoint.  
-**Ziel:** `GET /metrics` — Prometheus-Format via `metrics` + `metrics-exporter-prometheus`.  
-Metriken: Request-Count, Latenz, Queue-Tiefe, Agent-Erfolgsrate, Free-LLM-Provider-Calls.
+```
+metrics + metrics-exporter-prometheus
+GET /metrics → Prometheus-Format
+Metriken: request_count, latency_p99, queue_depth, agent_success_rate,
+          llm_provider_calls, llm_provider_errors
+```
 
 ---
 
 ### Multi-Tenant / Auth Scoping
-**Was fehlt:** Alle Ressourcen sind global — kein User/Org-Scoping.  
-**Ziel:** `owner_id: Uuid` auf `Project`/`Task`/`Agent`; API-Responses filtern nach JWT-Claims.
+Alle Ressourcen sind global — kein User/Org-Scoping.
 
----
-
-### ~~plugin-llm-free: Mistral Free Tier~~ ✅ `providers/mistral.rs`
-
-### ~~plugin-llm-free: Google AI Studio Free Tier~~ ✅ `providers/gemini.rs`
+```
+owner_id: Uuid auf Project/Task/Agent
+API filtert automatisch nach JWT claims.sub
+```
 
 ---
 
 ## P3 — Nice-to-Have
 
 ### Kubernetes-Manifeste
-Helm-Chart oder Kustomize-Konfiguration für Kubernetes-Deployment.  
-Ergänzt die vorhandene ECS-Infrastruktur in `infra/`.
+Helm-Chart oder Kustomize für Kubernetes-Deployment (ergänzt ECS-Infra in `infra/`).
 
 ### Web UI (SvelteKit)
-Minimalistische Browser-UI:
-- Voxel-Welt-Visualisierung (3D, WebGL)  
-- Task-Board (Kanban-ähnlich)  
-- Agent-Status-Dashboard  
-- Real-time über SSE/WebSocket
+- Voxel-Welt-Visualisierung (3D, WebGL / Three.js)
+- Task-Board (Kanban)
+- Agent-Status-Dashboard (Real-time SSE/WS)
+- Free-LLM-Provider-Status-Anzeige
 
 ### Plugin Marketplace
-`forgefabrik.market` Plugin-Registry:  
-Community-Plugins mit `forgefabrik.community.*` Namespace.
+`forgefabrik.market` Registry — Community-Plugins unter `forgefabrik.community.*`.
 
-### Replay / Event Sourcing
-Alle Events in Event-Store persistieren → komplette Replay-Fähigkeit.  
-Jeder State kann aus dem Event-Log rekonstruiert werden.
+### Event Sourcing / Replay
+Alle Events in Event-Store persistieren → vollständige Replay-Fähigkeit.
 
 ---
 
-## Aktuelle Architekturlücken (technische Schulden)
+## Offene Architekturlücken
 
-| Lücke | Wo | Auswirkung |
+| Lücke | Status | Nächster Schritt |
 |---|---|---|
-| ~~Kein Task-Dispatch-Loop~~ | ✅ | `dispatcher.rs` — pollt Queue, ruft Agenten auf |
-| ~~`MemoryStore` nicht persistiert~~ | ✅ | `PostgresStore` — aktivieren mit `DATABASE_URL=postgres://...` |
-| Auth-Middleware | `runtime/api` | `RequireAuth`-Extractor verfügbar, Routen noch ungeschützt |
-| `MemoryQueue` single-process | `runtime/queue` | Kein Scale-Out möglich |
-| `LocalSandboxManager` keine Isolation | `runtime/sandbox` | Code läuft im Host-Prozess |
-| ~~Kein CI~~ | ✅ | `.github/workflows/ci.yml` — check, lint, test, infra |
-| ~~Rate-Limit fehlt~~ | ✅ | `rate_limit.rs` — Sliding-Window, 300 Req/Min default |
-| LLM-Streaming fehlt | `plugin-llm-free` | Agenten blockieren bis Antwort komplett |
+| Auth auf Routen | P0 | `RequireAuth` in Handler-Signaturen ergänzen |
+| `MemoryQueue` single-process | P1 | `RedisQueue` implementieren |
+| Sandbox-Isolation | P1 | `DockerSandboxManager` implementieren |
+| LLM blockiert | P1 | Streaming-Endpoint |
+| Token-Budget ungenutzt | P1 | Economy-Plugin in FreeLlmAgent verdrahten |
+| Kein OpenAPI-Spec | P1 | `utoipa` Integration |
+| Keine Metriken | P2 | Prometheus-Endpoint |
+| Kein Multi-Tenant | P2 | `owner_id` + JWT-Scoping |
 
 ---
 
-## Vorgeschlagene Reihenfolge (Sprint-Planung)
+## Sprint-Plan (aktualisiert)
 
 ```
-Sprint 1 (Produktions-Minimum):
-  ✦ Task Dispatch Loop
-  ✦ GitHub Actions CI/CD
-  ✦ Auth-Middleware (JWT)
+Sprint 1 ✅  Task Dispatch Loop · CI/CD · Auth-Middleware
+Sprint 2 ✅  PostgresStore · Store Auto-Select
+Sprint 3 ✅  Rate Limiting
+Sprint 4 ✅  Mistral + Gemini Free Provider
 
-Sprint 2 (Persistenz):
-  ✦ PostgresStore
-  ✦ RedisQueue
+Sprint 5 (nächster):
+  → Auth auf alle Routen anwenden
+  → RedisQueue
+  → Token-Budget-Enforcement
 
-Sprint 3 (Isolation + Observability):
-  ✦ DockerSandboxManager
-  ✦ Metriken / Prometheus
-  ✦ Rate Limiting
+Sprint 6:
+  → DockerSandboxManager
+  → LLM Streaming
+  → OpenAPI / Swagger UI
 
-Sprint 4 (LLM-Verbesserungen):
-  ✦ LLM Streaming
-  ✦ Token-Budget-Enforcement
-  ✦ Mistral + Gemini Free Tier Provider
-
-Sprint 5 (API-Qualität):
-  ✦ OpenAPI / Swagger UI
-  ✦ Multi-Tenant-Scoping
-  ✦ WebSocket Agenten-Status
+Sprint 7:
+  → Prometheus Metriken
+  → WebSocket Agenten-Status
+  → Multi-Tenant-Scoping
 ```
