@@ -1,74 +1,93 @@
-# ForgeFabrik DevStudio — Cargo workspace
-# Root is workspace-only (no [package]).
-# One Concept, One Crate: each domain concern lives in exactly one crate.
+# ForgeFabrik DevStudio — Cargo Workspace
+#
+# BKG-Prinzipien:
+#   foundation  →  Typen, Events, Fehlerverträge  (kein Infra, keine Logik)
+#   domain      →  Fachdomänen, one concept = one crate
+#   runtime     →  Infrastruktur, I/O, Außenwelt
+#
+# Dependency-Richtung:  foundation  ←  domain  ←  runtime
+# Crate-Namen:          konzeptname, kein Projekt-Präfix
 
 [workspace]
 members = [
-    "crates/types",       # Domain models — Single Source of Truth
-    "crates/errors",      # AppError, AppResult
-    "crates/config",      # Settings
-    "crates/store",       # Store trait + MemoryStore
-    "crates/queue",       # TaskQueue trait + MemoryQueue
-    "crates/world",       # WorldState + Voxel engine
-    "crates/sandbox",     # SandboxManager trait + Local/Docker impls
-    "crates/security",    # Scanner + rules
-    "crates/deployment",  # DeploymentManager
-    "crates/agents",      # DevRolePlugin trait + 6 roles + Orchestrator
-    "crates/api",         # Axum router, handlers, AppState
-    "crates/server",      # Binary entry point
+    # ── foundation ──────────────────────────────────────────────────────────
+    "foundation/types",       # primitive Typen, IDs, Datenstrukturen
+    "foundation/events",      # Event-Definitionen (Wahrheit des Systems)
+    "foundation/errors",      # Fehlerverträge
+    # ── domain ──────────────────────────────────────────────────────────────
+    "domain/world",           # Voxel-Welt, WorldState, Koordinaten-Mapping
+    "domain/agents",          # DevRolePlugin, 6 Rollen, Orchestrator
+    "domain/security",        # Scanner, Regeln, Findings
+    "domain/deployment",      # Deployment-Pipeline, Konsenslogik
+    # ── runtime ─────────────────────────────────────────────────────────────
+    "runtime/config",         # Settings-Loader (env-basiert)
+    "runtime/store",          # Store-Trait + MemoryStore
+    "runtime/queue",          # TaskQueue-Trait + MemoryQueue
+    "runtime/sandbox",        # SandboxManager-Trait + Local/Docker
+    "runtime/api",            # HTTP/Axum: Router, Handler, AppState
+    "runtime/server",         # Binary-Einstiegspunkt
 ]
 resolver = "2"
 
-# ── Shared dependency versions (one version, one place) ───────────────────
+# ── Gemeinsame Versionen (Single Source of Truth) ─────────────────────────
 [workspace.dependencies]
-tokio              = { version = "1",    features = ["full"] }
-axum               = { version = "0.8",  features = ["ws", "macros"] }
-tower              = { version = "0.5",  features = ["util"] }
-tower-http         = { version = "0.6",  features = ["cors","trace","request-id","timeout","compression-gzip"] }
-axum-extra         = { version = "0.9",  features = ["typed-header"] }
-serde              = { version = "1",    features = ["derive"] }
-serde_json         = "1"
-sqlx               = { version = "0.8",  features = ["runtime-tokio-rustls","migrate","uuid","chrono","json","postgres","sqlite"] }
-redis              = { version = "0.27", features = ["tokio-comp","aio","streams"] }
-bollard            = { version = "0.17", default-features = false, features = ["rustls"] }
-reqwest            = { version = "0.12", default-features = false, features = ["json","stream","rustls-tls"] }
+# Async
+tokio        = { version = "1",    features = ["full"] }
+tokio-util   = { version = "0.7",  features = ["full"] }
+tokio-stream = { version = "0.1",  features = ["sync"] }
+futures      = "0.3"
+async-trait  = "0.1"
+# HTTP
+axum         = { version = "0.8",  features = ["ws", "macros"] }
+tower        = { version = "0.5",  features = ["util"] }
+tower-http   = { version = "0.6",  features = ["cors","trace","request-id","timeout","compression-gzip"] }
+axum-extra   = { version = "0.9",  features = ["typed-header"] }
+# Serialization
+serde        = { version = "1",    features = ["derive"] }
+serde_json   = "1"
+# Storage
+sqlx         = { version = "0.8",  features = ["runtime-tokio-rustls","migrate","uuid","chrono","json","postgres","sqlite"] }
+redis        = { version = "0.27", features = ["tokio-comp","aio","streams"] }
+dashmap      = "5"
+# Docker (kein System-OpenSSL)
+bollard      = { version = "0.17", default-features = false, features = ["rustls"] }
+# HTTP-Client (kein System-OpenSSL)
+reqwest      = { version = "0.12", default-features = false, features = ["json","stream","rustls-tls"] }
+# Observability
 tracing            = "0.1"
-tracing-subscriber = { version = "0.3",  features = ["env-filter","json"] }
-uuid               = { version = "1",    features = ["v4","serde"] }
-chrono             = { version = "0.4",  features = ["serde"] }
-thiserror          = "2"
-anyhow             = "1"
-async-trait        = "0.1"
-tokio-util         = { version = "0.7",  features = ["full"] }
-futures            = "0.3"
-tokio-stream       = { version = "0.1",  features = ["sync"] }
-bytes              = "1"
-once_cell          = "1"
-dotenvy            = "0.15"
-config             = "0.14"
-rand               = "0.8"
-sha2               = "0.10"
-hex                = "0.4"
-argon2             = "0.5"
-jsonwebtoken       = "9"
-dashmap            = "5"
-parking_lot        = "0.12"
-validator          = { version = "0.18", features = ["derive"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter","json"] }
+# Utilities
+uuid         = { version = "1",    features = ["v4","serde"] }
+chrono       = { version = "0.4",  features = ["serde"] }
+thiserror    = "2"
+anyhow       = "1"
+bytes        = "1"
+once_cell    = "1"
+dotenvy      = "0.15"
+rand         = "0.8"
+sha2         = "0.10"
+hex          = "0.4"
+parking_lot  = "0.12"
+# Auth
+argon2       = "0.5"
+jsonwebtoken = "9"
 # Dev
-axum-test          = "20"
-tokio-test         = "0.4"
-mockall            = "0.13"
-tempfile           = "3"
-wiremock           = "0.6"
-# Internal crates (path deps — used by dependents)
-devstudio-types      = { path = "crates/types" }
-devstudio-errors     = { path = "crates/errors" }
-devstudio-config     = { path = "crates/config" }
-devstudio-store      = { path = "crates/store" }
-devstudio-queue      = { path = "crates/queue" }
-devstudio-world      = { path = "crates/world" }
-devstudio-sandbox    = { path = "crates/sandbox" }
-devstudio-security   = { path = "crates/security" }
-devstudio-deployment = { path = "crates/deployment" }
-devstudio-agents     = { path = "crates/agents" }
-devstudio-api        = { path = "crates/api" }
+axum-test    = "20"
+tokio-test   = "0.4"
+mockall      = "0.13"
+tempfile     = "3"
+wiremock     = "0.6"
+
+# ── Interne Crate-Pfade ────────────────────────────────────────────────────
+types      = { path = "foundation/types" }
+events     = { path = "foundation/events" }
+errors     = { path = "foundation/errors" }
+world      = { path = "domain/world" }
+agents     = { path = "domain/agents" }
+security   = { path = "domain/security" }
+deployment = { path = "domain/deployment" }
+store      = { path = "runtime/store" }
+queue      = { path = "runtime/queue" }
+sandbox    = { path = "runtime/sandbox" }
+api        = { path = "runtime/api" }
+# 'config' und 'server' werden direkt per Pfad referenziert (Namenskonflikt vermeiden)

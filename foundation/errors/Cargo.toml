@@ -1,0 +1,9 @@
+[package]
+name    = "errors"
+version = "0.1.0"
+edition = "2021"
+description = "foundation/errors — AppError, AppResult (kein Infra, keine Axum-Deps)"
+
+[dependencies]
+thiserror = { workspace = true }
+uuid      = { workspace = true }

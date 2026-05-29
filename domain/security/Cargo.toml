@@ -1,0 +1,13 @@
+[package]
+name    = "security"
+version = "0.1.0"
+edition = "2021"
+description = "domain/security — Scanner, Regeln, Findings (pure Domänenlogik)"
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+uuid       = { workspace = true }
+tracing    = { workspace = true }
+types      = { workspace = true }
+errors     = { workspace = true }

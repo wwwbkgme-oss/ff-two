@@ -1,0 +1,13 @@
+[package]
+name    = "deployment"
+version = "0.1.0"
+edition = "2021"
+description = "domain/deployment — Deployment-Pipeline, Konsenslogik"
+
+[dependencies]
+tokio      = { workspace = true }
+chrono     = { workspace = true }
+tracing    = { workspace = true }
+uuid       = { workspace = true }
+types      = { workspace = true }
+errors     = { workspace = true }

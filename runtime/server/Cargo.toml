@@ -1,0 +1,24 @@
+[package]
+name        = "server"
+version     = "0.1.0"
+edition     = "2021"
+description = "runtime/server — Binärer Einstiegspunkt, orchestriert alle Crates"
+
+[[bin]]
+name = "devstudio"
+path = "src/main.rs"
+
+[dependencies]
+tokio      = { workspace = true }
+anyhow     = { workspace = true }
+dotenvy    = { workspace = true }
+tracing    = { workspace = true }
+world      = { workspace = true }
+agents     = { workspace = true }
+security   = { workspace = true }
+deployment = { workspace = true }
+store      = { workspace = true }
+queue      = { workspace = true }
+sandbox    = { workspace = true }
+api        = { workspace = true }
+config     = { path = "../../runtime/config" }

@@ -1,0 +1,17 @@
+[package]
+name    = "sandbox"
+version = "0.1.0"
+edition = "2021"
+description = "runtime/sandbox — SandboxManager-Trait + Local/Docker impl"
+
+[dependencies]
+async-trait = { workspace = true }
+tokio       = { workspace = true }
+sha2        = { workspace = true }
+hex         = { workspace = true }
+chrono      = { workspace = true }
+uuid        = { workspace = true }
+tracing     = { workspace = true }
+types       = { workspace = true }
+errors      = { workspace = true }
+config      = { path = "../../runtime/config" }

@@ -1,0 +1,13 @@
+[package]
+name    = "store"
+version = "0.1.0"
+edition = "2021"
+description = "runtime/store — Store-Trait + MemoryStore (I/O-Schicht)"
+
+[dependencies]
+async-trait = { workspace = true }
+uuid        = { workspace = true }
+dashmap     = { workspace = true }
+tracing     = { workspace = true }
+types       = { workspace = true }
+errors      = { workspace = true }

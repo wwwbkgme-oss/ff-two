@@ -1,0 +1,12 @@
+[package]
+name    = "types"
+version = "0.1.0"
+edition = "2021"
+description = "foundation/types — Single Source of Truth für alle Domain-Typen"
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+uuid       = { workspace = true }
+chrono     = { workspace = true }
+rand       = { workspace = true }
