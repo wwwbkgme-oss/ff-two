@@ -8,6 +8,11 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [Unreleased] — branch `neo/workspace-restructure-k7x2m`
 
+### Production-Readiness (neueste Commits)
+- `runtime/queue/src/redis.rs` — `RedisQueue`: Reliable Queue via Redis Lists, Dead-Letter, Auto-Select
+- `runtime/sandbox/src/docker.rs` — `DockerSandboxManager`: Container-Isolation, CPU/RAM-Limits, Snapshot/Restore
+- `runtime/server/src/main.rs` — Auto-Select: Redis-Queue + Docker-Sandbox anhand ENV-Flags
+
 ### forge-core SYNC_CONTRACT v0.1 (neueste Commits)
 - `foundation/types/src/tick.rs` — `WorldTick`, `TickContext`, `DeterministicRng` (SYNC_CONTRACT §3/§4)
 - `foundation/types/src/canonical.rs` — `FreeProvider` (9 Provider), `AgentKind::Free(FreeProvider)` (§7)
