@@ -36,7 +36,7 @@ use llm_free::agent::FreeLlmAgent;
 use queue::MemoryQueue;
 use sandbox::LocalSandboxManager;
 use security::Scanner;
-use store::MemoryStore;
+use store::{MemoryStore, PostgresStore, Store};
 use world::WorldState;
 
 #[tokio::main]
@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
         "ForgeFabrik DevStudio starting"
     );
 
-    let state = build_app_state(settings, use_free)?;
+    let state = build_app_state_async(settings, use_free).await?;
 
     // Dispatch-Loop im Hintergrund starten
     let _dispatch = dispatcher::spawn(state.clone());
@@ -92,7 +92,22 @@ fn has_free_providers() -> bool {
 /// `use_free_llm`:
 /// * `true`  → alle 6 Rollen nutzen `FreeLlmAgent` (kostenlose Provider)
 /// * `false` → Coding nutzt `CodingAgent` (Anthropic), Rest: einfache Agents
+pub async fn build_app_state_async(s: Settings, use_free_llm: bool) -> Result<AppState> {
+    let store: Arc<dyn Store> = if s.database.url.starts_with("postgres") {
+        info!("Store: PostgresStore ({})", &s.database.url[..s.database.url.find('@').unwrap_or(30).min(30)]);
+        Arc::new(PostgresStore::connect_and_migrate(&s.database.url).await?)
+    } else {
+        info!("Store: MemoryStore (kein Postgres konfiguriert)");
+        Arc::new(MemoryStore::new())
+    };
+    build_app_state_with_store(s, use_free_llm, store)
+}
+
 pub fn build_app_state(s: Settings, use_free_llm: bool) -> Result<AppState> {
+    build_app_state_with_store(s, use_free_llm, Arc::new(MemoryStore::new()))
+}
+
+fn build_app_state_with_store(s: Settings, use_free_llm: bool, store: Arc<dyn Store>) -> Result<AppState> {
     use types::AgentRole;
 
     let mut registry = AgentRegistry::new();
@@ -131,7 +146,7 @@ pub fn build_app_state(s: Settings, use_free_llm: bool) -> Result<AppState> {
     };
 
     Ok(AppState {
-        store:        Arc::new(MemoryStore::new()),
+        store,
         queue:        Arc::new(MemoryQueue::new(s.queue.capacity)),
         world:        Arc::new(WorldState::new()),
         sandbox:      Arc::new(LocalSandboxManager::new(s.sandbox.clone())),
