@@ -1,6 +1,13 @@
 # `runtime/queue`
 
-`TaskQueue`-Trait und `MemoryQueue` — abstraktes Queue-Interface für den Task-Dispatch-Loop.
+`TaskQueue`-Trait + `MemoryQueue` + `RedisQueue` — abstraktes Queue-Interface.
+
+## Backend-Auswahl
+
+| Backend | Aktivierung | Eigenschaften |
+|---|---|---|
+| `MemoryQueue` | Standard (kein ENV nötig) | In-process, verliert Daten bei Neustart |
+| `RedisQueue` | `DEVSTUDIO_REDIS_URL=redis://...` | Persistiert, multi-instance-fähig |
 
 ## TaskQueue-Trait
 
@@ -9,18 +16,9 @@
 pub trait TaskQueue: Send + Sync + 'static {
     async fn push(&self, task: Task)   -> AppResult<()>;
     async fn pop(&self)                -> AppResult<Option<QueueItem>>;
-    async fn ack(&self, id: Uuid)      -> AppResult<()>;   // Erfolg bestätigen
-    async fn nack(&self, id: Uuid)     -> AppResult<()>;   // Zurück in Queue (Retry)
-    async fn depth(&self)              -> AppResult<usize>; // Aktuelle Tiefe
-}
-```
-
-## QueueItem
-
-```rust
-pub struct QueueItem {
-    pub task:     Task,
-    pub attempts: u32,  // Erhöht bei jedem nack()
+    async fn ack(&self, id: Uuid)      -> AppResult<()>;   // Erfolg
+    async fn nack(&self, id: Uuid)     -> AppResult<()>;   // Retry / Dead-Letter
+    async fn depth(&self)              -> AppResult<usize>;
 }
 ```
 
@@ -29,25 +27,26 @@ pub struct QueueItem {
 In-Memory-Queue auf Basis eines `tokio::sync::mpsc`-Channels mit in-flight-Tracking.
 
 ```rust
-use queue::MemoryQueue;
-
 let queue: Arc<dyn TaskQueue> = Arc::new(MemoryQueue::new(1024));
 ```
 
-### Retry-Verhalten
+Retry: `nack()` legt Task nach max. 5 Versuchen in Dead-Letter. Lock-Guards werden vor `await`-Points gedroppt.
 
-- `nack()` legt den `QueueItem` mit `attempts += 1` zurück in den Channel
-- Nach **5 fehlgeschlagenen Versuchen** wird die Task verworfen (`warn!`-Log)
-- Lock-Guards werden vor `await`-Points gedroppt (`Send`-Anforderung für Tokio)
+## RedisQueue
 
-### Einschränkungen
+Produktionsreife Queue via Redis Lists — überlebt Server-Neustarts.
 
-- Rein in-process: Daten gehen beim Neustart verloren
-- Kein Multi-Consumer-Support über Prozessgrenzen hinweg
-- Kapazität fix bei Initialisierung (`capacity`-Parameter)
+```rust
+let queue: Arc<dyn TaskQueue> = Arc::new(RedisQueue::new("redis://localhost:6379")?);
+```
 
-## Geplante Backends
+**Implementierung (Reliable Queue Pattern):**
+- Queue-List: `devstudio:queue:tasks` (LPUSH / RPOP)
+- In-Flight-Hash: `devstudio:queue:inflight` (HSET / HDEL)
+- Dead-Letter-List: `devstudio:queue:dead` (nach 5 fehlgeschlagenen Versuchen)
 
-- `RedisQueue` — persistente Queue via Redis Streams (Mehrprozess-fähig, Replay-fähig)
-
-Siehe `NEXT.md` für Priorisierung.
+**Auto-Select in `runtime/server`:**
+```bash
+DEVSTUDIO_REDIS_URL=redis://localhost:6379 cargo run --bin devstudio
+# Startup-Log: "Queue: RedisQueue"
+```
