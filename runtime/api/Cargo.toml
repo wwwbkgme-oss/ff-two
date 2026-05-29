@@ -30,6 +30,7 @@ queue        = { workspace = true }
 sandbox      = { workspace = true }
 config       = { path = "../../runtime/config" }
 jsonwebtoken = { workspace = true }
+dashmap      = { workspace = true }
 
 [dev-dependencies]
 axum-test  = { workspace = true }
