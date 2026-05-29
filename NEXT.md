@@ -9,6 +9,9 @@ Priorisierung: **P0** = blockiert Production · **P1** = wichtig · **P2** = wer
 
 | Sprint | Item | Datei / Scope |
 |---|---|---|
+| **Prod** | Auth JWT auf alle Routen (P0) | `router.rs` + `require_auth` Middleware |
+| **Prod** | Token-Budget-Enforcement (P1) | `budget.rs` + `FreeLlmAgent.can_afford/debit` |
+| **Prod** | Prometheus Metriken (P2) | `metrics.rs` + `GET /metrics` |
 | **Sync** | forge-core SYNC_CONTRACT v0.1 Compliance | `FORGE_CORE_SYNC.md` |
 | **Sync** | WorldTick, TickContext, DeterministicRng | `foundation/types/src/tick.rs` |
 | **Sync** | FreeProvider, AgentKind canonical grouping | `foundation/types/src/canonical.rs` |
@@ -31,8 +34,8 @@ Priorisierung: **P0** = blockiert Production · **P1** = wichtig · **P2** = wer
 
 ## P0 — Blocking
 
-### Auth auf Routen anwenden
-`RequireAuth`-Extractor ist implementiert (`middleware/auth.rs`), aber noch nicht auf Routen gesetzt.  
+### ~~Auth auf Routen anwenden~~ ✅
+JWT-Middleware auf alle geschützten Routen. Public: `/auth/token`, `/health`, `/ready`, `/metrics`.  
 Alle `/projects`, `/tasks`, `/deployments` etc. sind noch öffentlich erreichbar.
 
 ```rust
@@ -171,13 +174,13 @@ Alle Events in Event-Store persistieren → vollständige Replay-Fähigkeit.
 
 | Lücke | Status | Nächster Schritt |
 |---|---|---|
-| Auth auf Routen | P0 | `RequireAuth` in Handler-Signaturen ergänzen |
+| ~~Auth auf Routen~~ | ✅ | Router-Level-Middleware `require_auth` |
 | ~~`MemoryQueue` single-process~~ | ✅ | `RedisQueue` — `DEVSTUDIO_REDIS_URL=redis://...` |
 | ~~Sandbox-Isolation~~ | ✅ | `DockerSandboxManager` — `DEVSTUDIO_SANDBOX_USE_DOCKER=true` |
 | LLM blockiert | P1 | Streaming-Endpoint |
-| Token-Budget ungenutzt | P1 | Economy-Plugin in FreeLlmAgent verdrahten |
+| ~~Token-Budget ungenutzt~~ | ✅ | `budget.rs` + FreeLlmAgent can_afford/debit |
 | Kein OpenAPI-Spec | P1 | `utoipa` Integration |
-| Keine Metriken | P2 | Prometheus-Endpoint |
+| ~~Keine Metriken~~ | ✅ | `GET /metrics` Prometheus-Endpoint |
 | Kein Multi-Tenant | P2 | `owner_id` + JWT-Scoping |
 
 ---
