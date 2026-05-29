@@ -29,8 +29,10 @@ store        = { workspace = true }
 queue        = { workspace = true }
 sandbox      = { workspace = true }
 config       = { path = "../../runtime/config" }
-jsonwebtoken = { workspace = true }
-dashmap      = { workspace = true }
+jsonwebtoken             = { workspace = true }
+dashmap                  = { workspace = true }
+metrics                  = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
 
 [dev-dependencies]
 axum-test  = { workspace = true }

@@ -75,6 +75,8 @@ rand         = "0.8"
 sha2         = "0.10"
 hex          = "0.4"
 blake3       = "1"
+metrics                  = "0.23"
+metrics-exporter-prometheus = "0.15"
 parking_lot  = "0.12"
 # Auth
 argon2       = "0.5"
